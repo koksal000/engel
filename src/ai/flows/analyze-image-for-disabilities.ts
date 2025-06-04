@@ -77,5 +77,3 @@ const analyzeImageForDisabilitiesFlow = ai.defineFlow(
     return output!;
   }
 );
-
-```
