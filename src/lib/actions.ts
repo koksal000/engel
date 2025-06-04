@@ -1,15 +1,16 @@
+
 'use server';
 
 import { z } from 'zod';
-import { predictPotentialHealthConcerns, type PredictPotentialHealthConcernsOutput, type PredictPotentialHealthConcernsInput } from '@/ai/flows/predict-potential-health-concerns';
+import { analyzeImageForDisabilities, type AnalyzeImageForDisabilitiesOutput, type AnalyzeImageForDisabilitiesInput } from '@/ai/flows/analyze-image-for-disabilities';
 
 const AnalysisFormSchema = z.object({
-  name: z.string().min(1, 'Name is required.'),
-  surname: z.string().min(1, 'Surname is required.'),
-  photoDataUri: z.string().startsWith('data:image/', 'Invalid image data URI.'),
+  name: z.string().min(1, 'Ad gereklidir.'),
+  surname: z.string().min(1, 'Soyad gereklidir.'),
+  photoDataUri: z.string().startsWith('data:image/', 'Geçersiz resim data URI.'),
 });
 
-export type AnalysisResult = PredictPotentialHealthConcernsOutput & {
+export type AnalysisResult = AnalyzeImageForDisabilitiesOutput & {
   name: string;
   surname: string;
   photoDataUri: string;
@@ -30,22 +31,30 @@ export async function performAnalysisAction(
   });
 
   if (!validatedFields.success) {
+    // Extracting specific error messages for better user feedback might be needed if detailed form errors are shown.
+    // For now, a general error message from Zod.
+    const errorMessages = validatedFields.error.flatten().fieldErrors;
+    let errorString = 'Doğrulama başarısız.';
+    if (errorMessages.name) errorString += ` Ad: ${errorMessages.name.join(', ')}`;
+    if (errorMessages.surname) errorString += ` Soyad: ${errorMessages.surname.join(', ')}`;
+    if (errorMessages.photoDataUri) errorString += ` Fotoğraf: ${errorMessages.photoDataUri.join(', ')}`;
+
     return {
-      message: 'Validation failed.',
-      error: validatedFields.error.flatten().fieldErrors.toString(),
+      message: 'Doğrulama başarısız.',
+      error: errorString,
     };
   }
 
-  const aiInput: PredictPotentialHealthConcernsInput = {
+  const aiInput: AnalyzeImageForDisabilitiesInput = {
     name: validatedFields.data.name,
     surname: validatedFields.data.surname,
     photoDataUri: validatedFields.data.photoDataUri,
   };
 
   try {
-    const result = await predictPotentialHealthConcerns(aiInput);
+    const result = await analyzeImageForDisabilities(aiInput);
     return {
-      message: 'Analysis successful.',
+      message: 'Analiz başarılı.',
       data: {
         ...result,
         name: validatedFields.data.name,
@@ -54,10 +63,12 @@ export async function performAnalysisAction(
       },
     };
   } catch (error) {
-    console.error('AI Analysis Error:', error);
+    console.error('AI Analiz Hatası:', error);
     return {
-      message: 'Analysis failed.',
-      error: error instanceof Error ? error.message : 'An unknown error occurred during analysis.',
+      message: 'Analiz başarısız oldu.',
+      error: error instanceof Error ? error.message : 'Analiz sırasında bilinmeyen bir hata oluştu.',
     };
   }
 }
+
+```

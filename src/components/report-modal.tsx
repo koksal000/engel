@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, CalendarDays, Clock, Hospital, Loader2, Stethoscope, User, Users } from 'lucide-react';
+import { AlertCircle, CalendarDays, FileText, Hospital, Loader2, User, Info, Brain } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -21,8 +22,11 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -49,7 +53,6 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     if (isOpen) {
       setReferralSubmitted(false); 
       setIsSubmittingReferral(false);
-      // Set default appointment date to today or tomorrow if today is past working hours logic could be added here
       const today = new Date();
       if(appointmentDate && appointmentDate < today && !(appointmentDate.toDateString() === today.toDateString())){
          setAppointmentDate(today);
@@ -65,11 +68,12 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     name,
     surname,
     photoDataUri,
-    ageEstimate,
+    estimatedAge,
     humanLikenessPercentage,
     potentialDisabilities,
     affectedBodyAreas,
-    healthConcerns,
+    redLightAreas,
+    report,
   } = reportData;
 
   const handleReferralSubmit = (e: React.FormEvent) => {
@@ -78,8 +82,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     
     setTimeout(() => {
       toast({
-        title: `Referral Submitted for ${name} ${surname}`,
-        description: `Sayın ${name} ${surname}, engelli olduğunuz için geçmiş olsunlarımızı iletiyor ve hastanemize başarıyla başvurduğunuzu bildirmek istiyoruz, saygılarımızla ~Bakırköy Ruh ve Sinir Hastalıkları Hastanesi Profesyonel Destek`,
+        title: `${name} ${surname} İçin Sevk Başvurusu Yapıldı`,
+        description: `Sayın ${name} ${surname}, başvurunuz hastanemiz tarafından başarıyla alınmıştır. Sağlıklı günler dileriz. ~Bakırköy Ruh ve Sinir Hastalıkları Hastanesi Profesyonel Destek`,
         duration: 8000, 
       });
       setIsSubmittingReferral(false);
@@ -91,44 +95,63 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl p-0">
         <ScrollArea className="max-h-[90vh]">
+        <TooltipProvider>
           <div className="p-6 space-y-6">
             <DialogHeader>
-              <DialogTitle className="text-3xl font-headline text-center text-primary">Analysis Report for {name} {surname}</DialogTitle>
+              <DialogTitle className="text-3xl font-headline text-center text-primary">{name} {surname} İçin Analiz Raporu</DialogTitle>
               <DialogDescription className="text-center">
-                This report provides an AI-generated analysis based on the uploaded image.
+                Bu rapor, yüklenen görüntüye dayanarak yapay zeka tarafından oluşturulmuş bir analiz sunmaktadır.
               </DialogDescription>
             </DialogHeader>
 
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><User className="text-accent"/> Patient Information</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl"><User className="text-accent"/> Hasta Bilgileri</CardTitle>
               </CardHeader>
               <CardContent>
-                <p><strong className="font-medium">Name:</strong> {name} {surname}</p>
+                <p><strong className="font-medium">Adı Soyadı:</strong> {name} {surname}</p>
               </CardContent>
             </Card>
             
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><Stethoscope className="text-accent"/> Image Analysis</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl"><Brain className="text-accent"/> Görüntü Analizi</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                   <div>
-                    <p className="font-medium mb-2 text-muted-foreground">Uploaded Image:</p>
-                    <div className="relative w-full aspect-square max-w-xs mx-auto md:mx-0">
+                    <p className="font-medium mb-2 text-muted-foreground">Yüklenen Görüntü:</p>
+                    <div className="relative w-full aspect-square max-w-xs mx-auto md:mx-0 rounded-lg border shadow-md overflow-hidden">
                      <Image
                         src={photoDataUri}
-                        alt={`Uploaded image of ${name} ${surname}`}
+                        alt={`${name} ${surname} adlı kişinin yüklenen görüntüsü`}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="rounded-lg object-cover border shadow-md"
+                        className="object-cover"
                         data-ai-hint="person photo"
                       />
+                      {redLightAreas && redLightAreas.length > 0 && redLightAreas.map((area, index) => (
+                        <Tooltip key={index}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="flashing-light"
+                              style={{
+                                top: `${area.y}%`,
+                                left: `${area.x}%`,
+                              }}
+                            />
+                          </TooltipTrigger>
+                          {area.description && (
+                            <TooltipContent>
+                              <p>{area.description}</p>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      ))}
                     </div>
                   </div>
                   <div>
-                    <p className="font-medium text-muted-foreground">Highlighted Areas of Concern:</p>
+                    <p className="font-medium text-muted-foreground">Vurgulanan Sorunlu Alanlar (Metinsel):</p>
                     {affectedBodyAreas && affectedBodyAreas.length > 0 ? (
                       <ul className="list-none p-0 space-y-1.5 mt-1">
                         {affectedBodyAreas.map((area, index) => (
@@ -139,18 +162,31 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No specific areas highlighted by the AI.</p>
+                      <p className="text-sm text-muted-foreground">Yapay zeka tarafından metinsel olarak vurgulanan belirli bir alan bulunmamaktadır.</p>
+                    )}
+                    {redLightAreas && redLightAreas.length > 0 && (
+                       <>
+                        <p className="font-medium text-muted-foreground mt-4">Görüntü Üzerinde İşaretlenen Noktalar:</p>
+                         <ul className="list-none p-0 space-y-1.5 mt-1">
+                           {redLightAreas.map((area, index) => area.description && (
+                             <li key={`desc-${index}`} className="flex items-center text-sm">
+                               <div className="w-3 h-3 rounded-full bg-red-500 mr-2 flex-shrink-0"></div>
+                               {area.description}
+                             </li>
+                           ))}
+                         </ul>
+                       </>
                     )}
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                    <p><strong className="font-medium">Estimated Age:</strong> {ageEstimate}</p>
-                    <p><strong className="font-medium">Human Likeness:</strong> {humanLikenessPercentage}</p>
+                    <p><strong className="font-medium">Tahmini Yaş:</strong> {estimatedAge}</p>
+                    <p><strong className="font-medium">İnsan Benzerlik Oranı:</strong> {humanLikenessPercentage}%</p>
                 </div>
 
                 <div>
-                  <p className="font-medium text-muted-foreground">Potential Disabilities:</p>
+                  <p className="font-medium text-muted-foreground">Potansiyel Engeller:</p>
                   {potentialDisabilities && potentialDisabilities.length > 0 ? (
                     <ul className="list-disc list-inside pl-1 space-y-1 mt-1">
                       {potentialDisabilities.map((disability, index) => (
@@ -158,51 +194,52 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No specific potential disabilities identified.</p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="font-medium text-muted-foreground">Potential Health Concerns:</p>
-                  {healthConcerns && healthConcerns.length > 0 ? (
-                    <ul className="list-disc list-inside pl-1 space-y-1 mt-1">
-                      {healthConcerns.map((concern, index) => (
-                        <li key={index} className="text-sm">{concern}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No specific health concerns identified.</p>
+                    <p className="text-sm text-muted-foreground">Belirli bir potansiyel engel tespit edilmedi.</p>
                   )}
                 </div>
               </CardContent>
             </Card>
+            
+            {report && (
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl"><FileText className="text-accent"/> Detaylı Rapor</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-32">
+                    <p className="text-sm whitespace-pre-wrap">{report}</p>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
+
 
             <Separator />
 
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hospital Referral Simulation</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hastane Sevk Simülasyonu</CardTitle>
                 <DialogDescription>
-                  Simulate a referral to Bakırköy Psychiatric Hospital.
+                  Bakırköy Ruh ve Sinir Hastalıkları Hastanesi'ne sevk simülasyonu yapın.
                 </DialogDescription>
               </CardHeader>
               <CardContent>
                 {referralSubmitted ? (
-                  <div className="text-center p-4 bg-secondary border border-border rounded-md animate-pulse-once">
-                    <h3 className="text-lg font-semibold text-primary">Referral Submitted Successfully!</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Details have been sent via toast notification.</p>
-                    <Button onClick={onClose} variant="outline" className="mt-4">Close Report</Button>
+                  <div className="text-center p-4 bg-secondary border border-border rounded-md">
+                    <h3 className="text-lg font-semibold text-primary">Sevk Başarıyla Gönderildi!</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Detaylar bildirim yoluyla gönderilmiştir.</p>
+                    <Button onClick={onClose} variant="outline" className="mt-4">Raporu Kapat</Button>
                   </div>
                 ) : (
                 <form onSubmit={handleReferralSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="patientName">Patient Name</Label>
+                    <Label htmlFor="patientName">Hasta Adı Soyadı</Label>
                     <Input id="patientName" value={`${name} ${surname}`} readOnly className="bg-muted"/>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="appointmentDate">Appointment Date</Label>
+                      <Label htmlFor="appointmentDate">Randevu Tarihi</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -210,7 +247,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                             className="w-full justify-start text-left font-normal"
                           >
                             <CalendarDays className="mr-2 h-4 w-4" />
-                            {appointmentDate ? format(appointmentDate, "PPP") : <span>Pick a date</span>}
+                            {appointmentDate ? format(appointmentDate, "PPP", { locale: tr }) : <span>Bir tarih seçin</span>}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
@@ -220,12 +257,13 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                             onSelect={setAppointmentDate}
                             initialFocus
                             disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1)) } 
+                            locale={tr}
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
                     <div>
-                      <Label htmlFor="appointmentTime">Appointment Time</Label>
+                      <Label htmlFor="appointmentTime">Randevu Saati</Label>
                       <Input 
                         id="appointmentTime" 
                         type="time" 
@@ -236,10 +274,10 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="doctor">Select Doctor</Label>
+                    <Label htmlFor="doctor">Doktor Seçin</Label>
                     <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
                       <SelectTrigger id="doctor">
-                        <SelectValue placeholder="Select a doctor" />
+                        <SelectValue placeholder="Bir doktor seçin" />
                       </SelectTrigger>
                       <SelectContent>
                         {doctors.map(doc => (
@@ -253,10 +291,10 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                     {isSubmittingReferral ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting Referral...
+                        Sevk Gönderiliyor...
                       </>
                     ) : (
-                      'Refer to Hospital'
+                      'Hastaneye Sevk Et'
                     )}
                   </Button>
                 </form>
@@ -265,11 +303,14 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
             </Card>
 
             <DialogFooter className="pt-4">
-              <Button variant="outline" onClick={onClose}>Close Report</Button>
+              <Button variant="outline" onClick={onClose}>Raporu Kapat</Button>
             </DialogFooter>
           </div>
+          </TooltipProvider>
         </ScrollArea>
       </DialogContent>
     </Dialog>
   );
 }
+
+```

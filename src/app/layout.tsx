@@ -1,10 +1,11 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'AwareAssist',
-  description: 'Comprehensive disability testing platform by AwareAssist',
+  title: 'AwareAssist: Kapsamlı Engellilik Değerlendirme Platformu',
+  description: 'Yapay zeka destekli AwareAssist ile ön engellilik analizi yapın ve sağlık içgörüleri edinin.',
 };
 
 export default function RootLayout({
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="tr">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

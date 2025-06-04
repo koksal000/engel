@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -28,8 +29,8 @@ export default function HomePage() {
         <div className="text-center mb-12">
           <AwareAssistLogo size="text-5xl" />
           <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Welcome to AwareAssist, your AI-powered platform for preliminary disability analysis. 
-            Upload an image to receive insights and simulate a hospital referral.
+            AwareAssist'e hoş geldiniz; ön engellilik analizi için yapay zeka destekli platformunuz.
+            İçgörüler almak ve bir hastane sevki simüle etmek için bir resim yükleyin.
           </p>
         </div>
         
@@ -44,9 +45,11 @@ export default function HomePage() {
         )}
       </main>
       <footer className="text-center py-6 text-sm text-muted-foreground border-t">
-        <p>&copy; {new Date().getFullYear()} AwareAssist. All rights reserved.</p>
-        <p className="mt-1">This platform is for informational and simulation purposes only and does not provide medical advice.</p>
+        <p>&copy; {new Date().getFullYear()} AwareAssist. Tüm hakları saklıdır.</p>
+        <p className="mt-1">Bu platform yalnızca bilgilendirme ve simülasyon amaçlıdır ve tıbbi tavsiye vermez.</p>
       </footer>
     </div>
   );
 }
+
+```

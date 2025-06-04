@@ -1,8 +1,9 @@
+
 // Use server directive.
 'use server';
 
 /**
- * @fileOverview Analyzes an image to estimate age, identify potential disabilities, and highlight affected body areas.
+ * @fileOverview Analyzes an image to estimate age, identify potential disabilities, and highlight affected body areas with coordinates.
  *
  * - analyzeImageForDisabilities - A function that handles the image analysis process.
  * - AnalyzeImageForDisabilitiesInput - The input type for the analyzeImageForDisabilities function.
@@ -25,11 +26,15 @@ export type AnalyzeImageForDisabilitiesInput = z.infer<typeof AnalyzeImageForDis
 
 const AnalyzeImageForDisabilitiesOutputSchema = z.object({
   estimatedAge: z.number().describe('The estimated age of the person.'),
-  humanLikenessPercentage: z.number().describe('The percentage of human likeness.'),
-  potentialDisabilities: z.array(z.string()).describe('A list of potential disabilities.'),
-  affectedBodyAreas: z.array(z.string()).describe('A list of affected body areas.'),
-  redLightAreas: z.array(z.string()).describe('A list of areas to highlight with red lights on the image.'),
-  report: z.string().describe('A comprehensive report of the analysis.'),
+  humanLikenessPercentage: z.number().min(0).max(100).describe('The percentage of human likeness (0-100).'),
+  potentialDisabilities: z.array(z.string()).describe('A list of potential disabilities in Turkish.'),
+  affectedBodyAreas: z.array(z.string()).describe('A list of affected body areas in Turkish.'),
+  redLightAreas: z.array(z.object({
+    x: z.number().min(0).max(100).describe('X coordinate as a percentage from the left (0-100)'),
+    y: z.number().min(0).max(100).describe('Y coordinate as a percentage from the top (0-100)'),
+    description: z.string().optional().describe('Optional Turkish description of the highlighted area.')
+  })).describe("A list of coordinates (x, y percentages) on the image to highlight with red lights. Descriptions must be in Turkish."),
+  report: z.string().describe('A comprehensive report of the analysis in Turkish.'),
 });
 export type AnalyzeImageForDisabilitiesOutput = z.infer<typeof AnalyzeImageForDisabilitiesOutputSchema>;
 
@@ -42,16 +47,22 @@ const analyzeImageForDisabilitiesPrompt = ai.definePrompt({
   input: {schema: AnalyzeImageForDisabilitiesInputSchema},
   output: {schema: AnalyzeImageForDisabilitiesOutputSchema},
   prompt: `You are an AI expert in analyzing images to estimate age, identify potential disabilities, and highlight affected body areas.
+All your textual output, including 'potentialDisabilities', 'affectedBodyAreas', 'report', and any 'description' within 'redLightAreas', MUST be in Turkish.
 
-  Analyze the following image of {{name}} {{surname}} to estimate their age, identify potential disabilities, and highlight affected body areas. Provide a comprehensive report of the analysis.
+Analyze the following image of {{name}} {{surname}} to estimate their age, identify potential disabilities, and highlight affected body areas. Provide a comprehensive report of the analysis.
 
-  Photo: {{media url=photoDataUri}}
+Photo: {{media url=photoDataUri}}
 
-  Consider factors like wrinkles, posture, body shape, and other indicators to determine potential health concerns.
+Consider factors like wrinkles, posture, body shape, and other indicators to determine potential health concerns.
 
-  Output the estimated age as a number, the percentage of human likeness as a number, potential disabilities as a list of strings, affected body areas as a list of strings, and areas to highlight with red lights on the image as a list of strings. Also, create a comprehensive report summarizing the analysis.
+Output the estimated age as a number.
+Output the human likeness percentage as a number (0-100).
+Output 'potentialDisabilities' as a list of Turkish strings.
+Output 'affectedBodyAreas' as a list of Turkish strings.
+Output 'redLightAreas' as a list of objects. Each object must have 'x' and 'y' keys, representing percentage coordinates (0-100) on the image for placing a red light (e.g., { "x": 30, "y": 45 }). Each object can also have an optional 'description' key with a brief Turkish explanation for that specific highlighted point. These points should indicate areas of concern on the image.
+Create a comprehensive 'report' in Turkish summarizing the analysis, including any health insights.
 
-  Ensure the output is well-formatted and easy to understand.
+Ensure the output is well-formatted and easy to understand.
   `,
 });
 
@@ -66,3 +77,5 @@ const analyzeImageForDisabilitiesFlow = ai.defineFlow(
     return output!;
   }
 );
+
+```

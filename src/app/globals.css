@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -109,4 +110,28 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+@keyframes flashGlow {
+  0%, 100% {
+    background-color: red;
+    box-shadow: 0 0 3px 1px red, 0 0 5px 2px rgba(255,0,0,0.7), 0 0 7px 3px rgba(255,0,0,0.5);
+    opacity: 1;
+  }
+  50% {
+    background-color: darkred;
+    box-shadow: 0 0 5px 2px darkred, 0 0 8px 4px rgba(139,0,0,0.5), 0 0 12px 6px rgba(139,0,0,0.3);
+    opacity: 0.7;
+  }
+}
+
+.flashing-light {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: flashGlow 1.5s infinite ease-in-out;
+  transform: translate(-50%, -50%); /* Center the dot on the coordinate */
+  z-index: 10; /* Ensure it's above the image */
+  pointer-events: auto; /* Allow tooltip to trigger */
 }
