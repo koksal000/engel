@@ -1,7 +1,8 @@
+
 'use client';
 
-import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useState, useRef, type ChangeEvent, type FormEvent, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -33,11 +34,11 @@ function SubmitButton() {
 
 export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
   const [initialState, setInitialState] = useState<{ message: string; data?: AnalysisResult; error?: string } | null>(null);
-  // Note: useFormState is used here, but the submission logic is handled manually in handleSubmit
+  // Note: useActionState is used here, but the submission logic is handled manually in handleSubmit
   // to allow for client-side logic (like onAnalysisComplete) based on the action's result.
   // For a pure server action-driven form without complex client-side callbacks post-submission,
   // the manual handleSubmit might not be needed.
-  const [state, formAction] = useFormState(performAnalysisAction, initialState);
+  const [state, formAction] = useActionState(performAnalysisAction, initialState);
   
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
@@ -64,20 +65,11 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    // Ensure photoDataUri (base64 string) is part of the FormData for the server action
-    // The 'photo' file input itself might not be what the server action expects if it's designed for a data URI.
     formData.set('photoDataUri', photoDataUri); 
 
     // Manually call the server action logic
-    // This is a common pattern when you need to react to the server action's result on the client-side
-    // beyond what useFormState directly provides, e.g., opening a modal.
-    const result = await performAnalysisAction(state, formData); // Pass current state as prevState
+    const result = await performAnalysisAction(state, formData); 
     
-    // Update local state to reflect the server action's outcome (e.g., to show errors)
-    // This line is crucial if you want useFormState's `state` to be updated.
-    // However, in this setup, `setInitialState` is used to display messages, which might be redundant
-    // if `state` from useFormState correctly updates and is used for messages.
-    // For simplicity and directness of displaying messages from `result`, we use `setInitialState`.
     setInitialState(result);
 
 
@@ -129,7 +121,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
             </div>
             <Input 
               id="photo" 
-              name="photo" // Name attribute is good practice, though not directly used by FormData if photoDataUri is set manually
+              name="photo" 
               type="file" 
               accept="image/*" 
               ref={fileInputRef}
@@ -137,7 +129,6 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
               required 
               className="sr-only"
             />
-             {/* Hidden input to carry photoDataUri, alternatively set in FormData directly */}
             <input type="hidden" name="photoDataUri" value={photoDataUri} />
           </div>
           
