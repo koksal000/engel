@@ -34,7 +34,7 @@ function SubmitButton() {
 
 export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
   const [initialState, setInitialState] = useState<{ message: string; data?: AnalysisResult; error?: string } | null>(null);
-  const [state, formAction, isPending] = useActionState(performAnalysisAction, null); // Changed useFormState to useActionState
+  const [state, formAction, isPending] = useActionState(performAnalysisAction, null); 
   
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
@@ -63,12 +63,9 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
     const formData = new FormData(event.currentTarget);
     formData.set('photoDataUri', photoDataUri); 
 
-    // Manually call the server action logic
-    // Note: The action state hook `formAction` can be used directly in form's action attribute.
-    // However, to keep the `onAnalysisComplete` callback, we are calling it manually.
     const result = await performAnalysisAction(initialState, formData); 
     
-    setInitialState(result); // Update local state for displaying messages/errors
+    setInitialState(result); 
 
     if (result.data) {
       onAnalysisComplete(result.data);
@@ -150,5 +147,3 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
     </Card>
   );
 }
-
-```

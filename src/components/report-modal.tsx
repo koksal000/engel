@@ -51,7 +51,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      setReferralSubmitted(false); 
+      setReferralSubmitted(false);
       setIsSubmittingReferral(false);
       const today = new Date();
       if(appointmentDate && appointmentDate < today && !(appointmentDate.toDateString() === today.toDateString())){
@@ -312,5 +312,3 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     </Dialog>
   );
 }
-
-```
