@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { AlertCircle, CalendarDays, FileText, Hospital, Loader2, User, Info, Brain } from 'lucide-react';
+import { AlertCircle, CalendarDays, FileText, Hospital, Loader2, User, Info, Brain, Percent, ListChecks } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -74,6 +74,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     affectedBodyAreas,
     redLightAreas,
     report,
+    disabilityPercentage,
+    disabilityTypes,
   } = reportData;
 
   const handleReferralSubmit = (e: React.FormEvent) => {
@@ -83,7 +85,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     setTimeout(() => {
       toast({
         title: `${name} ${surname} İçin Sevk Başvurusu Yapıldı`,
-        description: `Sayın ${name} ${surname}, başvurunuz hastanemiz tarafından başarıyla alınmıştır. Sağlıklı günler dileriz. ~Bakırköy Ruh ve Sinir Hastalıkları Hastanesi Profesyonel Destek`,
+        description: `Sayın ${name} ${surname}, başvurunuz Bakırköy Engellilik Değerlendirme Merkezi tarafından başarıyla alınmıştır. Sağlıklı günler dileriz.`,
         duration: 8000, 
       });
       setIsSubmittingReferral(false);
@@ -98,9 +100,9 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
         <TooltipProvider>
           <div className="p-6 space-y-6">
             <DialogHeader>
-              <DialogTitle className="text-3xl font-headline text-center text-primary">{name} {surname} İçin Analiz Raporu</DialogTitle>
+              <DialogTitle className="text-3xl font-headline text-center text-primary">{name} {surname} İçin Ön Değerlendirme Raporu</DialogTitle>
               <DialogDescription className="text-center">
-                Bu rapor, yüklenen görüntüye dayanarak yapay zeka tarafından oluşturulmuş bir analiz sunmaktadır.
+                Bu rapor, yüklenen görüntüye dayanarak yapay zeka tarafından oluşturulmuş bir ön analiz sunmaktadır. Kesin tanı için lütfen bir sağlık kuruluşuna başvurunuz.
               </DialogDescription>
             </DialogHeader>
 
@@ -115,7 +117,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
             
             <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl"><Brain className="text-accent"/> Görüntü Analizi</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl"><Brain className="text-accent"/> Görüntü Analizi ve Ön Değerlendirme</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -164,7 +166,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                     ) : (
                       <p className="text-sm text-muted-foreground">Yapay zeka tarafından metinsel olarak vurgulanan belirli bir alan bulunmamaktadır.</p>
                     )}
-                    {redLightAreas && redLightAreas.length > 0 && (
+                    {redLightAreas && redLightAreas.filter(area => area.description).length > 0 && (
                        <>
                         <p className="font-medium text-muted-foreground mt-4">Görüntü Üzerinde İşaretlenen Noktalar:</p>
                          <ul className="list-none p-0 space-y-1.5 mt-1">
@@ -185,8 +187,26 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                     <p><strong className="font-medium">İnsan Benzerlik Oranı:</strong> {humanLikenessPercentage}%</p>
                 </div>
 
+                {disabilityPercentage !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <Percent className="h-5 w-5 text-accent" />
+                    <p><strong className="font-medium">Tahmini Engellilik Yüzdesi:</strong> {disabilityPercentage}%</p>
+                  </div>
+                )}
+
+                {disabilityTypes && disabilityTypes.length > 0 && (
+                  <div>
+                    <p className="font-medium text-muted-foreground flex items-center gap-2"><ListChecks className="h-5 w-5 text-accent" /> Potansiyel Engellilik Türleri:</p>
+                    <ul className="list-disc list-inside pl-1 space-y-1 mt-1">
+                      {disabilityTypes.map((type, index) => (
+                        <li key={index} className="text-sm">{type}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div>
-                  <p className="font-medium text-muted-foreground">Potansiyel Engeller:</p>
+                  <p className="font-medium text-muted-foreground">Potansiyel Engeller (Genel):</p>
                   {potentialDisabilities && potentialDisabilities.length > 0 ? (
                     <ul className="list-disc list-inside pl-1 space-y-1 mt-1">
                       {potentialDisabilities.map((disability, index) => (
@@ -203,10 +223,10 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
             {report && (
               <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl"><FileText className="text-accent"/> Detaylı Rapor</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl"><FileText className="text-accent"/> Detaylı Ön Değerlendirme Raporu</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-32">
+                  <ScrollArea className="h-40">
                     <p className="text-sm whitespace-pre-wrap">{report}</p>
                   </ScrollArea>
                 </CardContent>
@@ -220,7 +240,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hastane Sevk Simülasyonu</CardTitle>
                 <DialogDescription>
-                  Bakırköy Ruh ve Sinir Hastalıkları Hastanesi'ne sevk simülasyonu yapın.
+                  Bakırköy Engellilik Değerlendirme Merkezi'ne (örnek: Bakırköy Ruh ve Sinir Hastalıkları Hastanesi) sevk simülasyonu yapın.
                 </DialogDescription>
               </CardHeader>
               <CardContent>
@@ -274,7 +294,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="doctor">Doktor Seçin</Label>
+                    <Label htmlFor="doctor">Doktor Seçin (Örnek)</Label>
                     <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
                       <SelectTrigger id="doctor">
                         <SelectValue placeholder="Bir doktor seçin" />
@@ -294,7 +314,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                         Sevk Gönderiliyor...
                       </>
                     ) : (
-                      'Hastaneye Sevk Et'
+                      'Merkeze Sevk Simülasyonu Başlat'
                     )}
                   </Button>
                 </form>

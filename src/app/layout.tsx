@@ -1,11 +1,12 @@
 
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
+import { Header } from '@/components/header'; // Import the new Header
 
 export const metadata: Metadata = {
-  title: 'AwareAssist: Kapsamlı Engellilik Değerlendirme Platformu',
-  description: 'Yapay zeka destekli AwareAssist ile ön engellilik analizi yapın ve sağlık içgörüleri edinin.',
+  title: 'Bakırköy Engellilik Değerlendirme Merkezi - Online Test Platformu',
+  description: 'Bakırköy Engellilik Değerlendirme Merkezi resmi web sitesi. Yapay zeka destekli ön engellilik analizi ve sağlık içgörüleri.',
 };
 
 export default function RootLayout({
@@ -20,8 +21,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased min-h-screen flex flex-col">
-        {children}
+      <body className="font-body antialiased min-h-screen flex flex-col bg-background text-foreground">
+        <Header />
+        <main className="flex-grow">
+          {children}
+        </main>
+        <footer className="text-center py-6 text-sm text-muted-foreground border-t bg-card">
+          <p>&copy; {new Date().getFullYear()} Bakırköy Engellilik Değerlendirme Merkezi. Tüm hakları saklıdır.</p>
+          <p className="mt-1">Bu platform yalnızca bilgilendirme ve simülasyon amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Kesin tanı ve tedavi için lütfen yetkili sağlık kuruluşlarına başvurunuz.</p>
+        </footer>
         <Toaster />
       </body>
     </html>

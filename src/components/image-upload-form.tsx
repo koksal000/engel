@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState, useRef, type ChangeEvent, type FormEvent, useActionState } from 'react';
+import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
+import { useActionState } from 'react'; // Updated import
 import { useFormStatus } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,14 +27,15 @@ function SubmitButton() {
           Analiz Ediliyor...
         </>
       ) : (
-        'Testi Başlat'
+        'Ön Değerlendirme Testini Başlat'
       )}
     </Button>
   );
 }
 
 export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
-  const [initialState, setInitialState] = useState<{ message: string; data?: AnalysisResult; error?: string } | null>(null);
+  // useActionState requires the action to be passed directly if its signature matches.
+  // The initial state for useActionState should be the *actual* initial state, not a state setter.
   const [state, formAction, isPending] = useActionState(performAnalysisAction, null); 
   
   const [name, setName] = useState('');
@@ -58,31 +60,25 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
     }
   };
   
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    formData.set('photoDataUri', photoDataUri); 
-
-    const result = await performAnalysisAction(initialState, formData); 
-    
-    setInitialState(result); 
-
-    if (result.data) {
-      onAnalysisComplete(result.data);
+  // This effect will run when `state` (the result of formAction) changes.
+  useState(() => {
+    if (state?.data) {
+      onAnalysisComplete(state.data);
     }
-  };
+  }, [state, onAnalysisComplete]);
 
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline text-center">Engellilik Analizi</CardTitle>
+        <CardTitle className="text-2xl font-headline text-center">Engellilik Ön Değerlendirme Testi</CardTitle>
         <CardDescription className="text-center">
-          Yapay zeka destekli bir analiz için bir resim yükleyin ve bilgilerinizi girin.
+          Bakırköy Engellilik Değerlendirme Merkezi yapay zeka destekli ön analiz için bir resim yükleyin ve bilgilerinizi girin.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Pass formAction directly to the form's action prop */}
+        <form action={formAction} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Ad</Label>
             <Input id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Adınızı girin" />
@@ -108,14 +104,14 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
                   <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                 )}
                 <div className="flex text-sm text-muted-foreground justify-center">
-                  <p className="pl-1">{imagePreview ? 'Resmi değiştir' : 'Yüklemek için tıklayın'}</p>
+                  <p className="pl-1">{imagePreview ? 'Resmi değiştir' : 'Yüklemek için tıklayın veya sürükleyin'}</p>
                 </div>
                 <p className="text-xs text-muted-foreground">PNG, JPG, GIF 10MB'a kadar</p>
               </div>
             </div>
             <Input 
               id="photo" 
-              name="photo" 
+              name="photo" // This input is mainly for triggering the file dialog, actual data URI is sent via hidden input.
               type="file" 
               accept="image/*" 
               ref={fileInputRef}
@@ -123,21 +119,23 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
               required 
               className="sr-only"
             />
+            {/* Hidden input to send photoDataUri with the form */}
             <input type="hidden" name="photoDataUri" value={photoDataUri} />
           </div>
           
-          {initialState?.error && (
+          {state?.error && (
              <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Hata</AlertTitle>
-              <AlertDescription>{initialState.error}</AlertDescription>
+              <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
-          {initialState?.message && !initialState.data && !initialState.error && (
+          {/* Display general message if no data and no error (e.g. validation in progress, or non-data message) */}
+          {state?.message && !state.data && !state.error && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Bilgi</AlertTitle>
-              <AlertDescription>{initialState.message}</AlertDescription>
+              <AlertDescription>{state.message}</AlertDescription>
             </Alert>
           )}
 

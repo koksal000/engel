@@ -14,6 +14,7 @@ export type AnalysisResult = AnalyzeImageForDisabilitiesOutput & {
   name: string;
   surname: string;
   photoDataUri: string;
+  // disabilityPercentage and disabilityTypes are already in AnalyzeImageForDisabilitiesOutput and optional
 };
 
 export async function performAnalysisAction(
@@ -31,8 +32,6 @@ export async function performAnalysisAction(
   });
 
   if (!validatedFields.success) {
-    // Extracting specific error messages for better user feedback might be needed if detailed form errors are shown.
-    // For now, a general error message from Zod.
     const errorMessages = validatedFields.error.flatten().fieldErrors;
     let errorString = 'Doğrulama başarısız.';
     if (errorMessages.name) errorString += ` Ad: ${errorMessages.name.join(', ')}`;
