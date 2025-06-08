@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { SiteLogo } from '@/components/site-logo';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // Added SheetHeader, SheetTitle
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -60,13 +60,15 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] p-0">
               <div className="flex flex-col h-full">
-                <div className="p-6 flex items-center justify-between border-b">
-                  <SiteLogo size="text-lg" />
+                <SheetHeader className="p-6 flex flex-row items-center justify-between border-b space-y-0">
+                  <SheetTitle>
+                    <SiteLogo size="text-lg" />
+                  </SheetTitle>
                   <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
                     <X className="h-5 w-5" />
                     <span className="sr-only">Menüyü kapat</span>
                   </Button>
-                </div>
+                </SheetHeader>
                 <nav className="flex-grow p-6 space-y-4">
                   {navItems.map((item) => (
                      <Link
