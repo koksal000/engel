@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
-import { useActionState } from 'react'; // Updated import
+import { useState, useRef, type ChangeEvent, type FormEvent, useEffect } from 'react'; // Added useEffect
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,8 +34,6 @@ function SubmitButton() {
 }
 
 export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
-  // useActionState requires the action to be passed directly if its signature matches.
-  // The initial state for useActionState should be the *actual* initial state, not a state setter.
   const [state, formAction, isPending] = useActionState(performAnalysisAction, null); 
   
   const [name, setName] = useState('');
@@ -60,8 +58,8 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
     }
   };
   
-  // This effect will run when `state` (the result of formAction) changes.
-  useState(() => {
+  // Corrected: useState changed to useEffect
+  useEffect(() => {
     if (state?.data) {
       onAnalysisComplete(state.data);
     }
@@ -77,7 +75,6 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Pass formAction directly to the form's action prop */}
         <form action={formAction} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Ad</Label>
@@ -111,7 +108,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
             </div>
             <Input 
               id="photo" 
-              name="photo" // This input is mainly for triggering the file dialog, actual data URI is sent via hidden input.
+              name="photo"
               type="file" 
               accept="image/*" 
               ref={fileInputRef}
@@ -119,7 +116,6 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
               required 
               className="sr-only"
             />
-            {/* Hidden input to send photoDataUri with the form */}
             <input type="hidden" name="photoDataUri" value={photoDataUri} />
           </div>
           
@@ -130,7 +126,6 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
-          {/* Display general message if no data and no error (e.g. validation in progress, or non-data message) */}
           {state?.message && !state.data && !state.error && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
