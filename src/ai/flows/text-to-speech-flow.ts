@@ -12,10 +12,10 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 
-export const TextToSpeechInputSchema = z.string().describe("The text to be converted to speech.");
+const TextToSpeechInputSchema = z.string().describe("The text to be converted to speech.");
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
 
-export const TextToSpeechOutputSchema = z.object({
+const TextToSpeechOutputSchema = z.object({
   audioDataUri: z.string().describe("The base64 encoded WAV audio data URI."),
 });
 export type TextToSpeechOutput = z.infer<typeof TextToSpeechOutputSchema>;

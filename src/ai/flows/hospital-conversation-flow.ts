@@ -10,8 +10,21 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { AnalyzeImageForDisabilitiesOutputSchema } from './analyze-image-for-disabilities';
 
+const AnalyzeImageForDisabilitiesOutputSchema = z.object({
+  estimatedAge: z.number().describe('Tahmini yaş.'),
+  humanLikenessPercentage: z.number().min(0).max(100).describe('İnsan benzerlik yüzdesi (0-100).'),
+  potentialDisabilities: z.array(z.string()).describe('Potansiyel engellerin bir listesi (Türkçe).'),
+  disabilityPercentage: z.number().min(0).max(100).optional().describe('Tahmini engellilik yüzdesi (0-100) (Türkçe).'),
+  disabilityTypes: z.array(z.string()).optional().describe('Belirlenen engellilik türleri (örneğin, zihinsel, fiziksel, nörolojik, duyusal, gelişimsel, diğer) (Türkçe).'),
+  affectedBodyAreas: z.array(z.string()).describe('Etkilenen vücut bölgelerinin bir listesi (Türkçe).'),
+  redLightAreas: z.array(z.object({
+    x: z.number().min(0).max(100).describe('Soldan X koordinatı yüzdesi (0-100)'),
+    y: z.number().min(0).max(100).describe('Üstten Y koordinatı yüzdesi (0-100)'),
+    description: z.string().optional().describe('Vurgulanan alanın isteğe bağlı Türkçe açıklaması.')
+  })).describe("Görüntü üzerinde kırmızı ışıklarla vurgulanacak koordinatların (x, y yüzdeleri) bir listesi. Açıklamalar Türkçe olmalıdır."),
+  report: z.string().describe('Analizin kapsamlı bir raporu (Türkçe). Bu rapor kişinin genel durumu, olası engelleri, bu engellerin türleri (zihinsel, fiziksel, nörolojik vb.), etkilenen vücut bölgeleri ve genel sağlık içgörülerini detaylı bir şekilde açıklamalıdır. Mümkünse, tahmini bir engellilik yüzdesi belirtilmelidir.'),
+});
 
 const ConversationHistorySchema = z.object({
   role: z.enum(['user', 'model']),
@@ -27,7 +40,7 @@ const HospitalConsultantInputSchema = z.object({
 });
 export type HospitalConsultantInput = z.infer<typeof HospitalConsultantInputSchema>;
 
-export const HospitalConsultantOutputSchema = z.string().describe("The consultant's response in Turkish.");
+const HospitalConsultantOutputSchema = z.string().describe("The consultant's response in Turkish.");
 export type HospitalConsultantOutput = z.infer<typeof HospitalConsultantOutputSchema>;
 
 
