@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Dialpad, UserPlus, Video, Contact } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Keyboard, UserPlus, Video, Contact } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech-flow';
 import { hospitalConsultant } from '@/ai/flows/hospital-conversation-flow';
@@ -183,7 +183,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
 
         <div className="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-xs mb-8">
           <CallActionButton icon={isMuted ? <MicOff /> : <Mic />} label="Sessiz" onClick={() => setIsMuted(!isMuted)} className={cn(isMuted && "!bg-white/80 !text-black")} />
-          <CallActionButton icon={<Dialpad />} label="Tuş Takımı" disabled />
+          <CallActionButton icon={<Keyboard />} label="Tuş Takımı" disabled />
           <CallActionButton icon={<Volume2 />} label="Hoparlör" disabled />
           <CallActionButton icon={<UserPlus />} label="Arama Ekle" disabled />
           <CallActionButton icon={<Video />} label="Görüntü" disabled />
