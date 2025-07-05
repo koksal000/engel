@@ -28,10 +28,39 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setPhotoDataUri(result);
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxHeight = 760;
+          let width = img.width;
+          let height = img.height;
+
+          if (height > maxHeight) {
+            const ratio = maxHeight / height;
+            width = width * ratio;
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            setError('Resim sıkıştırılamadı. Lütfen başka bir resim deneyin.');
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          
+          setImagePreview(dataUrl);
+          setPhotoDataUri(dataUrl);
+        };
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          img.src = result;
+        }
       };
       reader.readAsDataURL(file);
     } else {
@@ -101,7 +130,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
                 <div className="flex text-sm text-muted-foreground justify-center">
                   <p className="pl-1">{imagePreview ? 'Resmi değiştir' : 'Yüklemek için tıklayın veya sürükleyin'}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">PNG, JPG, GIF 30MB'a kadar</p>
+                <p className="text-xs text-muted-foreground">Yüksek çözünürlüklü resimler otomatik olarak sıkıştırılacaktır.</p>
               </div>
             </div>
             <Input
