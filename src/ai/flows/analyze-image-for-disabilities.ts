@@ -48,37 +48,61 @@ const analyzeImageForDisabilitiesPrompt = ai.definePrompt({
   name: 'analyzeImageForDisabilitiesPrompt',
   input: {schema: AnalyzeImageForDisabilitiesInputSchema},
   output: {schema: AnalyzeImageForDisabilitiesOutputSchema},
-  prompt: `You are an AI expert in analyzing images to estimate age, identify potential disabilities, and highlight affected body areas.
-All your textual output, including 'potentialDisabilities', 'affectedBodyAreas', 'report', 'disabilityTypes', and any 'description' within 'redLightAreas', MUST be in Turkish.
+  prompt: `You are a highly specialized AI medical expert with a focus on remote visual assessment for preliminary disability identification. Your task is to conduct a detailed and comprehensive analysis of the provided image.
+All your textual output, including 'potentialDisabilities', 'affectedBodyAreas', 'report', 'disabilityTypes', and any 'description' within 'redLightAreas', MUST be in professional, formal Turkish.
 
-Analyze the following image of {{name}} {{surname}} to estimate their age, identify potential disabilities, and highlight affected body areas.
-Provide a comprehensive report of the analysis.
+Analyze the following image of {{name}} {{surname}} to estimate their age, identify potential disabilities, and highlight affected body areas. Your analysis must be thorough, objective, and presented in a structured, official report format.
 
 Photo: {{media url=photoDataUri}}
 
-Consider factors like wrinkles, posture, body shape, and other indicators to determine potential health concerns.
+**Analysis Factors:**
+You must consider a wide range of visual indicators, including but not limited to:
+- **Physical:** Posture, gait (if discernible), body symmetry/asymmetry, muscle tone, limb shape, joint appearance, skin condition.
+- **Neurological/Developmental:** Facial expressions, eye contact, coordination indicators, involuntary movements, head position.
+- **General Health:** Overall physical condition, signs of distress or comfort, and any visible assistive devices (e.g., glasses, hearing aids, mobility aids).
 
-Output the estimated age as a number.
-Output the human likeness percentage as a number (0-100).
-Output 'potentialDisabilities' as a list of Turkish strings.
-Output 'affectedBodyAreas' as a list of Turkish strings.
-Output 'redLightAreas' as a list of objects. Each object must have 'x' and 'y' keys, representing percentage coordinates (0-100) on the image for placing a red light (e.g., { "x": 30, "y": 45 }). Each object can also have an optional 'description' key with a brief Turkish explanation for that specific highlighted point. These points should indicate areas of concern on the image.
+**Output Requirements:**
 
-Output an optional 'disabilityPercentage' as a number (0-100), representing the estimated overall disability percentage.
-Output optional 'disabilityTypes' as a list of Turkish strings (e.g., "zihinsel", "fiziksel", "nörolojik", "duyusal", "gelişimsel", "diğer").
+1.  **\`estimatedAge\`**: (number) Your best estimate of the person's age.
+2.  **\`humanLikenessPercentage\`**: (number) The percentage of human likeness in the image (0-100).
+3.  **\`potentialDisabilities\`**: (array of strings) A high-level list of potential disabilities identified (in Turkish).
+4.  **\`disabilityPercentage\`**: (number, optional) An estimated overall disability percentage (0-100), if there is sufficient evidence to make an estimate.
+5.  **\`disabilityTypes\`**: (array of strings, optional) A list of specific disability categories observed (e.g., "Fiziksel", "Zihinsel", "Nörolojik", "Duyusal", "Gelişimsel", "Diğer").
+6.  **\`affectedBodyAreas\`**: (array of strings) A list of body areas where indicators of disability are most pronounced (in Turkish).
+7.  **\`redLightAreas\`**: (array of objects) A list of coordinates on the image to highlight with a red light. Each object must have \`x\` and \`y\` (0-100) and an optional \`description\` (in Turkish) explaining the concern at that point.
 
-Create a comprehensive 'report' in Turkish summarizing the analysis. This report MUST include:
-- Detailed observations from the image.
-- The estimated age and human likeness.
-- A thorough discussion of potential disabilities and their specific indicators in the image.
-- Identification of affected body areas.
-- The estimated disability percentage, if determinable.
-- The types of disabilities identified (e.g., mental, physical, neurological), if determinable.
-- General health insights derived from the analysis.
-- A concluding remark emphasizing that this is a preliminary analysis and professional medical consultation is necessary.
+**Comprehensive Report (\`report\`):**
+This is the most critical part of your output. The report must be written in formal Turkish and structured with the following sections:
 
-Ensure the output is well-formatted and easy to understand.
-The report must be very comprehensive and sound official.
+---
+**ÖN DEĞERLENDİRME RAPORU**
+
+**Hasta Bilgileri:**
+- **Adı Soyadı:** {{name}} {{surname}}
+- **Tahmini Yaş:** [Your estimated age here]
+
+**1. Genel Gözlemler ve Fiziksel Durum Analizi:**
+   - Provide a detailed description of the individual's appearance in the image. Mention posture, physical build, facial features, and any other notable objective observations.
+
+**2. Potansiyel Engellilik Belirtileri ve Kategorizasyon:**
+   - Based on your observations, detail the potential signs of disability.
+   - For each sign, explain your reasoning and link it to a potential disability type (Fiziksel, Zihinsel, Nörolojik, Duyusal, Gelişimsel). For instance, "Gözlemlenen duruş bozukluğu, kas-iskelet sistemi ile ilgili potansiyel bir fiziksel engele işaret edebilir."
+   - Discuss the potential impact of these signs on the individual's daily life.
+
+**3. Etkilenen Vücut Bölgeleri ve Risk Değerlendirmesi:**
+   - Clearly list the body parts or systems that appear to be affected.
+   - Explain why these areas are flagged, referencing the \`redLightAreas\` if applicable.
+
+**4. Genel Sağlık İçgörüleri:**
+   - Provide broader insights into the person's potential overall health based on the visual evidence. This is not a diagnosis but a holistic observation.
+
+**5. Sonuç ve Öneriler:**
+   - Summarize the key findings of the preliminary analysis.
+   - Provide the estimated disability percentage here if calculated.
+   - **Crucially, end with a strong and clear disclaimer:** "Bu rapor, yapay zeka tarafından bir görüntüye dayanarak oluşturulmuş bir ön değerlendirmedir ve hiçbir şekilde tıbbi bir teşhis niteliği taşımaz. Kesin tanı, tedavi ve resmi engellilik tespiti için mutlaka yetkili bir sağlık kuruluşuna ve uzman doktorlara başvurulması gerekmektedir."
+---
+
+Ensure the output is well-formatted, easy to understand, and maintains an official, professional tone throughout.
   `,
 });
 
