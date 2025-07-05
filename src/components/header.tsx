@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { SiteLogo } from '@/components/site-logo';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // Added SheetHeader, SheetTitle
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Anasayfa', href: '/' },
   { label: 'Engellilik Testi', href: '/' },
   { label: 'Geçmiş Başvurular', href: '/gecmis-basvurular' },
+  { label: 'Geçmiş Aramalar', href: '/gecmis-aramalar' },
   { label: 'Hakkımızda', href: '/hakkimizda' },
   { label: 'Sağlık Raporu Bilgilendirme', href: '/saglik-raporu-bilgilendirme' },
   { label: 'İletişim', href: '/iletisim' },
@@ -27,18 +28,8 @@ export function Header() {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  const getNavItemClass = (itemHref: string, itemLabel: string) => {
-    // Exact match for all pages except the root
-    if (itemHref !== '/' && pathname === itemHref) {
-      return "text-primary font-semibold";
-    }
-    // Special handling for "Anasayfa" and "Engellilik Testi" which both point to "/"
-    if (pathname === '/') {
-        if (itemHref === '/' && (itemLabel === 'Anasayfa' || itemLabel === 'Engellilik Testi')) {
-            return "text-primary font-semibold";
-        }
-    }
-    return "";
+  const getNavItemClass = (itemHref: string) => {
+    return pathname === itemHref ? "text-primary font-semibold" : "";
   };
 
 
@@ -50,14 +41,14 @@ export function Header() {
         </Link>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex space-x-4 items-center">
+        <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
           {navItems.map((item) => (
             <Link
               key={item.href + item.label}
               href={item.href}
               className={cn(
-                "text-sm font-medium text-muted-foreground hover:text-primary transition-colors",
-                getNavItemClass(item.href, item.label)
+                "text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-2 py-1 rounded-md",
+                getNavItemClass(item.href)
               )}
             >
               {item.label}
@@ -92,7 +83,7 @@ export function Header() {
                       href={item.href}
                       className={cn(
                         "block py-2 text-base font-medium text-foreground hover:text-primary transition-colors",
-                         getNavItemClass(item.href, item.label)
+                         getNavItemClass(item.href)
                       )}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >

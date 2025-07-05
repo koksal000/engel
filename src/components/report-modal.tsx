@@ -26,6 +26,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { addApplication } from '@/lib/db';
+import type { ApplicationData } from '@/lib/db';
+import { useCall } from '@/context/call-context';
 
 
 interface ReportModalProps {
@@ -46,11 +48,11 @@ const rejectionReasons = [
     "Sistemsel bir hata nedeniyle başvuru işlemi tamamlanamadı.",
     "Başvuru bilgileri eksik veya hatalı.",
     "Yoğunluk nedeniyle randevu verilememektedir.",
-    "Geçersiz başvuru denemesi."
 ];
 
 export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
   const { toast } = useToast();
+  const { scheduleCall } = useCall();
   const [appointmentDate, setAppointmentDate] = useState<Date | undefined>(new Date());
   const [appointmentTime, setAppointmentTime] = useState<string>('10:00');
   const [selectedDoctor, setSelectedDoctor] = useState<string>(doctors[0]);
@@ -90,26 +92,37 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     e.preventDefault();
     setIsSubmittingReferral(true);
 
+    const isApproved = Math.random() < 0.1; // 10% chance of approval
+    const status = isApproved ? 'onaylandı' : 'reddedildi';
     const randomReason = rejectionReasons[Math.floor(Math.random() * rejectionReasons.length)];
     
-    const applicationData = {
+    const applicationData: Omit<ApplicationData, 'id'> = {
         ...reportData,
         referral: {
             doctor: selectedDoctor,
             date: appointmentDate || new Date(),
             time: appointmentTime,
-            status: 'reddedildi' as const,
-            reason: randomReason,
+            status: status,
+            reason: status === 'reddedildi' ? randomReason : undefined,
         }
     };
 
     try {
-        await addApplication(applicationData);
+        const newId = await addApplication(applicationData);
+        const finalApplicationData = { ...applicationData, id: newId };
+
         toast({
             title: "Başvurunuz Gönderildi",
             description: "Başvuru sürecini ve kabul durumunu 'Geçmiş Başvurular' bölümünden kontrol edebilirsiniz.",
+            variant: "default",
             duration: 8000, 
         });
+
+        if (finalApplicationData.referral?.status === 'onaylandı') {
+            // Schedule the call for 2 minutes later (120,000 ms)
+            scheduleCall(finalApplicationData, 120000);
+        }
+
         setReferralSubmitted(true);
     } catch (error) {
         console.error("Veritabanına kaydetme hatası:", error);
@@ -263,7 +276,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               </Card>
             )}
 
-            { !reportData.id && ( // Only show referral section if it's a new report, not one being viewed from history
+            { !reportData.id && (
             <>
             <Separator />
 
@@ -271,14 +284,14 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hastane Sevk Simülasyonu</CardTitle>
                 <DialogDescription>
-                  Bakırköy Engellilik Değerlendirme Merkezi'ne (örnek: Bakırköy Ruh ve Sinir Hastalıkları Hastanesi) sevk simülasyonu yapın.
+                  Bakırköy Engellilik Değerlendirme Merkezi'ne sevk simülasyonu yapın. Başvurunuzun %10 ihtimalle onaylanacağını ve onaylanırsa 2 dakika içinde bir danışmanın sizi arayacağını unutmayın.
                 </DialogDescription>
               </CardHeader>
               <CardContent>
                 {referralSubmitted ? (
                   <div className="text-center p-4 bg-secondary border border-border rounded-md">
-                    <h3 className="text-lg font-semibold text-primary">Başvuru Sonucu İletildi!</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Detaylar bildirim yoluyla gönderilmiştir ve sonuçlar 'Geçmiş Başvurular' sayfasına eklenmiştir.</p>
+                    <h3 className="text-lg font-semibold text-primary">Başvuru Sonucunuz İletildi!</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Detaylar bildirim yoluyla gönderilmiştir ve sonuçlar 'Geçmiş Başvurular' sayfasına eklenmiştir. Onaylandıysa, bir danışman sizinle iletişime geçecektir.</p>
                     <Button onClick={onClose} variant="outline" className="mt-4">Raporu Kapat</Button>
                   </div>
                 ) : (

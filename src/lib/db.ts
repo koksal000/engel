@@ -5,10 +5,11 @@ import { openDB } from 'idb';
 import type { AnalysisResult } from './actions';
 
 const DB_NAME = 'bakirkoy-merkezi-db';
-const DB_VERSION = 1;
-const STORE_NAME = 'applications';
+const DB_VERSION = 2; // Incremented version for schema change
+const APPLICATIONS_STORE_NAME = 'applications';
+const CALLS_STORE_NAME = 'calls';
 
-interface ApplicationData extends AnalysisResult {
+export interface ApplicationData extends AnalysisResult {
   id?: number;
   referral?: {
     doctor: string;
@@ -18,12 +19,29 @@ interface ApplicationData extends AnalysisResult {
     reason?: string;
   }
 }
+
+export interface Call {
+    id?: number;
+    applicationId: number;
+    patientName: string;
+    status: 'answered' | 'rejected' | 'missed';
+    date: Date;
+    duration: number; // in seconds
+    transcript?: { speaker: 'user' | 'consultant'; text: string }[];
+}
+
+
 interface MyDB extends DBSchema {
-  [STORE_NAME]: {
+  [APPLICATIONS_STORE_NAME]: {
     key: number;
     value: ApplicationData;
     indexes: { 'by-name': string };
   };
+  [CALLS_STORE_NAME]: {
+      key: number;
+      value: Call;
+      indexes: { 'by-applicationId': number };
+  }
 }
 
 let dbPromise: Promise<IDBPDatabase<MyDB>> | null = null;
@@ -32,13 +50,20 @@ const initDB = () => {
   if (dbPromise) return dbPromise;
   
   dbPromise = openDB<MyDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, {
+    upgrade(db, oldVersion) {
+      if (!db.objectStoreNames.contains(APPLICATIONS_STORE_NAME)) {
+        const store = db.createObjectStore(APPLICATIONS_STORE_NAME, {
           keyPath: 'id',
           autoIncrement: true,
         });
         store.createIndex('by-name', 'name');
+      }
+      if (!db.objectStoreNames.contains(CALLS_STORE_NAME)) {
+        const store = db.createObjectStore(CALLS_STORE_NAME, {
+            keyPath: 'id',
+            autoIncrement: true,
+        });
+        store.createIndex('by-applicationId', 'applicationId');
       }
     },
   });
@@ -46,35 +71,34 @@ const initDB = () => {
 };
 
 
+// Application Functions
 export const addApplication = async (application: ApplicationData): Promise<number> => {
   const db = await initDB();
-  return db.add(STORE_NAME, application);
+  return db.add(APPLICATIONS_STORE_NAME, application);
 };
 
 export const getAllApplications = async (): Promise<ApplicationData[]> => {
   const db = await initDB();
-  return db.getAll(STORE_NAME);
+  return db.getAll(APPLICATIONS_STORE_NAME);
 };
 
-export const getApplicationById = async (id: number): Promise<ApplicationData | undefined> => {
-  const db = await initDB();
-  return db.get(STORE_NAME, id);
-};
+export const updateApplication = async (application: ApplicationData): Promise<number> => {
+    const db = await initDB();
+    return db.put(APPLICATIONS_STORE_NAME, application);
+}
 
-export const updateApplicationStatus = async (
-  id: number,
-  status: 'reddedildi' | 'onaylandı',
-  reason?: string
-): Promise<void> => {
-  const db = await initDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-  const application = await store.get(id);
+// Call Functions
+export const addCall = async (call: Call): Promise<number> => {
+    const db = await initDB();
+    return db.add(CALLS_STORE_NAME, call);
+}
 
-  if (application && application.referral) {
-    application.referral.status = status;
-    application.referral.reason = reason ?? '';
-    await store.put(application);
-  }
-  await tx.done;
-};
+export const getAllCalls = async (): Promise<Call[]> => {
+    const db = await initDB();
+    return db.getAll(CALLS_STORE_NAME);
+}
+
+export const updateCall = async (call: Call): Promise<number> => {
+    const db = await initDB();
+    return db.put(CALLS_STORE_NAME, call);
+}

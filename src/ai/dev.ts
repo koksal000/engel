@@ -6,3 +6,5 @@ config();
 // If it was intended to be kept, it should have been part of the prompt.
 // For now, keeping only the active flow.
 import '@/ai/flows/analyze-image-for-disabilities.ts';
+import '@/ai/flows/hospital-conversation-flow.ts';
+import '@/ai/flows/text-to-speech-flow.ts';

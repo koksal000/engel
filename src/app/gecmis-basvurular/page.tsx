@@ -5,36 +5,22 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getAllApplications, updateApplicationStatus } from '@/lib/db';
-import type { AnalysisResult } from '@/lib/actions';
+import { getAllApplications } from '@/lib/db';
+import type { ApplicationData } from '@/lib/db';
 import { Loader2, CheckCircle, XCircle, FileSearch, User, Calendar, Stethoscope, MessageSquareWarning } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { useToast } from '@/hooks/use-toast';
 import { ReportModal } from '@/components/report-modal';
-
-interface ApplicationData extends AnalysisResult {
-  id: number;
-  referral?: {
-    doctor: string;
-    date: Date;
-    time: string;
-    status: 'reddedildi' | 'onaylandı';
-    reason?: string;
-  }
-}
 
 export default function GecmisBasvurularPage() {
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<ApplicationData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { toast } = useToast();
 
   const fetchApplications = async () => {
     setIsLoading(true);
     const apps = await getAllApplications();
-    // Sort applications by ID descending to show newest first
     setApplications(apps.sort((a, b) => b.id - a.id));
     setIsLoading(false);
   };
@@ -42,25 +28,6 @@ export default function GecmisBasvurularPage() {
   useEffect(() => {
     fetchApplications();
   }, []);
-
-  const handleApprove = async (id: number) => {
-    try {
-      await updateApplicationStatus(id, 'onaylandı', 'Başvuru Yönetici Tarafından Onaylandı.');
-      toast({
-        title: 'Başarı!',
-        description: `Başvuru #${id} başarıyla onaylandı.`,
-        variant: 'default',
-      });
-      fetchApplications(); // Refresh the list
-    } catch (error) {
-      toast({
-        title: 'Hata',
-        description: 'Başvuru durumu güncellenirken bir hata oluştu.',
-        variant: 'destructive',
-      });
-      console.error(error);
-    }
-  };
 
   const handleViewReport = (app: ApplicationData) => {
     setSelectedReport(app);
@@ -139,12 +106,6 @@ export default function GecmisBasvurularPage() {
                   <FileSearch className="w-4 h-4 mr-2" />
                   Raporu Görüntüle
                 </Button>
-                {app.referral?.status === 'reddedildi' && (
-                  <Button className="w-full" onClick={() => handleApprove(app.id)}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Onayla
-                  </Button>
-                )}
               </CardFooter>
             </Card>
           ))}
