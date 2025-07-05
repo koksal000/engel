@@ -103,7 +103,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
                 <div className="flex text-sm text-muted-foreground justify-center">
                   <p className="pl-1">{imagePreview ? 'Resmi değiştir' : 'Yüklemek için tıklayın veya sürükleyin'}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">PNG, JPG, GIF 10MB'a kadar</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG, GIF 30MB'a kadar</p>
               </div>
             </div>
             <Input 
