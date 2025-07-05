@@ -71,16 +71,18 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!photoDataUri) {
-        setError("Lütfen bir fotoğraf yükleyin.");
+    if (!photoDataUri || !name || !surname) {
+        setError("Lütfen tüm alanları doldurun ve bir fotoğraf yükleyin.");
         return;
     }
     setIsPending(true);
     setError(null);
 
-    const formData = new FormData(event.currentTarget);
-
-    const result = await performAnalysisAction(formData);
+    const result = await performAnalysisAction({
+      name,
+      surname,
+      photoDataUri,
+    });
 
     setIsPending(false);
 
@@ -105,11 +107,11 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Ad</Label>
-            <Input id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Adınızı girin" />
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Adınızı girin" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="surname">Soyad</Label>
-            <Input id="surname" name="surname" value={surname} onChange={(e) => setSurname(e.target.value)} required placeholder="Soyadınızı girin" />
+            <Input id="surname" value={surname} onChange={(e) => setSurname(e.target.value)} required placeholder="Soyadınızı girin" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="photo">Fotoğraf Yükle</Label>
@@ -135,14 +137,12 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
             </div>
             <Input
               id="photo"
-              name="photo"
               type="file"
               accept="image/*"
               ref={fileInputRef}
               onChange={handleImageChange}
               className="sr-only"
             />
-            <input type="hidden" name="photoDataUri" value={photoDataUri} />
           </div>
 
           {error && (

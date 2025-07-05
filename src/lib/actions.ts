@@ -21,18 +21,12 @@ export type AnalysisActionState = {
   error?: string | null;
 };
 
-export async function performAnalysisAction(
-  formData: FormData
-): Promise<AnalysisActionState> {
-  const name = formData.get('name') as string;
-  const surname = formData.get('surname') as string;
-  const photoDataUri = formData.get('photoDataUri') as string;
+type PerformAnalysisActionInput = z.infer<typeof AnalysisFormSchema>;
 
-  const validatedFields = AnalysisFormSchema.safeParse({
-    name,
-    surname,
-    photoDataUri,
-  });
+export async function performAnalysisAction(
+  input: PerformAnalysisActionInput
+): Promise<AnalysisActionState> {
+  const validatedFields = AnalysisFormSchema.safeParse(input);
 
   if (!validatedFields.success) {
     const errorMessages = validatedFields.error.flatten().fieldErrors;
