@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { label: 'Anasayfa', href: '/' },
   { label: 'Engellilik Testi', href: '/' },
+  { label: 'Geçmiş Başvurular', href: '/gecmis-basvurular' },
   { label: 'Hakkımızda', href: '/hakkimizda' },
   { label: 'Sağlık Raporu Bilgilendirme', href: '/saglik-raporu-bilgilendirme' },
   { label: 'İletişim', href: '/iletisim' },
@@ -25,6 +26,21 @@ export function Header() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
+
+  const getNavItemClass = (itemHref: string, itemLabel: string) => {
+    // Exact match for all pages except the root
+    if (itemHref !== '/' && pathname === itemHref) {
+      return "text-primary font-semibold";
+    }
+    // Special handling for "Anasayfa" and "Engellilik Testi" which both point to "/"
+    if (pathname === '/') {
+        if (itemHref === '/' && (itemLabel === 'Anasayfa' || itemLabel === 'Engellilik Testi')) {
+            return "text-primary font-semibold";
+        }
+    }
+    return "";
+  };
+
 
   return (
     <header className="py-4 px-6 shadow-md bg-card sticky top-0 z-50">
@@ -41,7 +57,7 @@ export function Header() {
               href={item.href}
               className={cn(
                 "text-sm font-medium text-muted-foreground hover:text-primary transition-colors",
-                ((pathname === item.href && item.href !== '/') || (pathname === '/' && item.href === '/' && item.label === 'Anasayfa')) && "text-primary font-semibold"
+                getNavItemClass(item.href, item.label)
               )}
             >
               {item.label}
@@ -76,7 +92,7 @@ export function Header() {
                       href={item.href}
                       className={cn(
                         "block py-2 text-base font-medium text-foreground hover:text-primary transition-colors",
-                         ((pathname === item.href && item.href !== '/') || (pathname === '/' && item.href === '/' && item.label === 'Anasayfa')) && "text-primary font-semibold"
+                         getNavItemClass(item.href, item.label)
                       )}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >

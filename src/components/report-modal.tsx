@@ -26,12 +26,13 @@ import { tr } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { addApplication } from '@/lib/db';
 
 
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  reportData: AnalysisResult | null;
+  reportData: (AnalysisResult & { id?: number }) | null;
 }
 
 const doctors = [
@@ -39,6 +40,14 @@ const doctors = [
   "Doç. Dr. Mehmet Özcan - Nöroloji Uzmanı",
   "Uzm. Dr. Zeynep Kaya - Ruh Sağlığı ve Hastalıkları",
   "Dr. Ali Demir - Genel Psikiyatri",
+];
+
+const rejectionReasons = [
+    "Doktor şu anda meşgul, lütfen daha sonra tekrar deneyin.",
+    "Sistemsel bir hata nedeniyle başvuru işlemi tamamlanamadı.",
+    "Başvuru bilgileri eksik veya hatalı.",
+    "Yoğunluk nedeniyle randevu verilememektedir.",
+    "Geçersiz başvuru denemesi."
 ];
 
 export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
@@ -78,19 +87,42 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     disabilityTypes,
   } = reportData;
 
-  const handleReferralSubmit = (e: React.FormEvent) => {
+  const handleReferralSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingReferral(true);
+
+    const randomReason = rejectionReasons[Math.floor(Math.random() * rejectionReasons.length)];
     
-    setTimeout(() => {
-      toast({
-        title: `${name} ${surname} İçin Sevk Başvurusu Yapıldı`,
-        description: `Sayın ${name} ${surname}, başvurunuz Bakırköy Engellilik Değerlendirme Merkezi tarafından başarıyla alınmıştır. Sağlıklı günler dileriz.`,
-        duration: 8000, 
-      });
-      setIsSubmittingReferral(false);
-      setReferralSubmitted(true);
-    }, 1500);
+    const applicationData = {
+        ...reportData,
+        referral: {
+            doctor: selectedDoctor,
+            date: appointmentDate || new Date(),
+            time: appointmentTime,
+            status: 'reddedildi' as const,
+            reason: randomReason,
+        }
+    };
+
+    try {
+        await addApplication(applicationData);
+        toast({
+            title: "Başvuru Simülasyonu Başarısız Oldu",
+            description: `Gerekçe: ${randomReason}. Başvurunuz 'Geçmiş Başvurular' bölümüne kaydedildi.`,
+            variant: "destructive",
+            duration: 8000, 
+        });
+        setReferralSubmitted(true);
+    } catch (error) {
+        console.error("Veritabanına kaydetme hatası:", error);
+        toast({
+            title: "Hata",
+            description: "Başvuru kaydedilirken bir hata oluştu.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsSubmittingReferral(false);
+    }
   };
 
   return (
@@ -233,7 +265,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               </Card>
             )}
 
-
+            { !reportData.id && ( // Only show referral section if it's a new report, not one being viewed from history
+            <>
             <Separator />
 
             <Card className="shadow-lg">
@@ -246,8 +279,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               <CardContent>
                 {referralSubmitted ? (
                   <div className="text-center p-4 bg-secondary border border-border rounded-md">
-                    <h3 className="text-lg font-semibold text-primary">Sevk Başarıyla Gönderildi!</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Detaylar bildirim yoluyla gönderilmiştir.</p>
+                    <h3 className="text-lg font-semibold text-primary">Başvuru Sonucu İletildi!</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Detaylar bildirim yoluyla gönderilmiştir ve sonuçlar 'Geçmiş Başvurular' sayfasına eklenmiştir.</p>
                     <Button onClick={onClose} variant="outline" className="mt-4">Raporu Kapat</Button>
                   </div>
                 ) : (
@@ -311,7 +344,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                     {isSubmittingReferral ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sevk Gönderiliyor...
+                        Sevk Başvurusu Yapılıyor...
                       </>
                     ) : (
                       'Merkeze Sevk Simülasyonu Başlat'
@@ -321,6 +354,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
                 )}
               </CardContent>
             </Card>
+            </>
+            )}
 
             <DialogFooter className="pt-4">
               <Button variant="outline" onClick={onClose}>Raporu Kapat</Button>
