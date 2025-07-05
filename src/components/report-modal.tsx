@@ -119,8 +119,9 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
         });
 
         if (finalApplicationData.referral?.status === 'onaylandı') {
-            // Schedule the call for 2 minutes later (120,000 ms)
-            scheduleCall(finalApplicationData, 120000);
+            // Schedule the call for 30-60 seconds later
+            const randomDelay = (Math.floor(Math.random() * 31) + 30) * 1000;
+            scheduleCall(finalApplicationData, randomDelay);
         }
 
         setReferralSubmitted(true);
@@ -284,7 +285,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hastane Sevk Simülasyonu</CardTitle>
                 <DialogDescription>
-                  Bakırköy Engellilik Değerlendirme Merkezi'ne sevk simülasyonu yapın. Başvurunuzun %20 ihtimalle onaylanacağını ve onaylanırsa 2 dakika içinde bir danışmanın sizi arayacağını unutmayın.
+                  Bakırköy Engellilik Değerlendirme Merkezi'ne sevk simülasyonu yapın. Başvurunuzun %20 ihtimalle onaylanacağını ve onaylanırsa 30-60 saniye içinde bir danışmanın sizi arayacağını unutmayın.
                 </DialogDescription>
               </CardHeader>
               <CardContent>
