@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2 } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Dialpad, UserPlus, Video, Contact } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech-flow';
 import { hospitalConsultant } from '@/ai/flows/hospital-conversation-flow';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { cn } from '@/lib/utils';
+import { SiteLogo } from './site-logo';
+import React from 'react';
 
 interface CallUIProps {
   callData: ApplicationData;
@@ -42,6 +44,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           }
       } catch (error) {
           console.error("Error in conversation flow:", error);
+          // Don't start listening if there was an error
           setIsAIThinking(false);
       }
   }
@@ -94,7 +97,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const handleAccept = () => {
     ringtoneRef.current?.pause();
     setCallStatus('active');
-    // Start the conversation with the AI's greeting
     handleAIResponse([]);
   };
 
@@ -103,7 +105,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     onEndCall('rejected');
   };
   
-  const CallButton = ({ icon, label, onClick, className = '' }: any) => (
+  const IncomingCallButton = ({ icon, label, onClick, className = '' }: any) => (
     <div className="flex flex-col items-center gap-2 text-center">
       <button onClick={onClick} className={`flex items-center justify-center w-16 h-16 rounded-full ${className}`}>
         {icon}
@@ -111,6 +113,31 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       {label && <span className="text-white text-sm mt-1">{label}</span>}
     </div>
   );
+  
+  const CallActionButton = ({ icon, label, onClick, disabled = false, className = '' }: {
+    icon: React.ReactNode;
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    className?: string;
+  }) => (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            "flex items-center justify-center w-16 h-16 rounded-full bg-white/10 transition-colors",
+            "hover:bg-white/20",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10",
+            className
+        )}
+      >
+        {React.cloneElement(icon as React.ReactElement, { size: 28 })}
+      </button>
+      <span className="text-sm text-gray-300">{label}</span>
+    </div>
+  );
+
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -127,8 +154,8 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           <p className="text-xl mt-2 text-gray-300">Bakırköy Hastanesi arıyor...</p>
         </div>
         <div className="flex justify-between w-full max-w-xs mb-10">
-          <CallButton icon={<PhoneOff size={32} />} label="Reddet" onClick={handleReject} className="bg-red-500 hover:bg-red-600" />
-          <CallButton icon={<Phone size={32} />} label="Aç" onClick={handleAccept} className="bg-green-500 hover:bg-green-600" />
+          <IncomingCallButton icon={<PhoneOff size={32} />} label="Reddet" onClick={handleReject} className="bg-red-500 hover:bg-red-600" />
+          <IncomingCallButton icon={<Phone size={32} />} label="Aç" onClick={handleAccept} className="bg-green-500 hover:bg-green-600" />
         </div>
       </div>
     );
@@ -136,45 +163,40 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
 
   // Active call screen
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-95 backdrop-blur-xl z-[100] flex flex-col items-center text-white p-8">
-      <div className="text-center mt-12">
-        <h1 className="text-5xl font-light">Deniz Tuğrul</h1>
-        <p className="text-2xl mt-3 text-green-400">{formatDuration(callDuration)}</p>
+    <div className="fixed inset-0 bg-gray-900 text-white z-[100] flex flex-col p-4">
+      <header className="absolute top-4 left-4">
+        <SiteLogo className="text-white !text-opacity-70" size="text-lg" />
+      </header>
+
+      <div className="flex-grow flex flex-col items-center justify-center text-center">
+        <div className="flex-grow" />
+        
+        <h1 className="text-5xl font-thin tracking-wide">Deniz Tuğrul</h1>
+        <p className="text-xl mt-2 text-gray-400">{formatDuration(callDuration)}</p>
+
+        <div className="mt-4 h-6 text-center">
+          {isAIThinking && <p className="text-base text-cyan-300 flex items-center gap-2"><Bot className="animate-spin h-4 w-4" /> Danışman konuşuyor...</p>}
+          {isListening && <p className="text-base text-red-400 flex items-center gap-2"><Mic className="animate-pulse h-4 w-4" /> Sizi dinliyorum...</p>}
+        </div>
+        
+        <div className="flex-grow" />
+
+        <div className="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-xs mb-8">
+          <CallActionButton icon={isMuted ? <MicOff /> : <Mic />} label="Sessiz" onClick={() => setIsMuted(!isMuted)} className={cn(isMuted && "!bg-white/80 !text-black")} />
+          <CallActionButton icon={<Dialpad />} label="Tuş Takımı" disabled />
+          <CallActionButton icon={<Volume2 />} label="Hoparlör" disabled />
+          <CallActionButton icon={<UserPlus />} label="Arama Ekle" disabled />
+          <CallActionButton icon={<Video />} label="Görüntü" disabled />
+          <CallActionButton icon={<Contact />} label="Kişiler" disabled />
+        </div>
+
+        <div className="mb-8">
+          <button onClick={() => onEndCall('answered')} className="flex items-center justify-center w-20 h-20 bg-red-600 rounded-full hover:bg-red-700 transition-colors">
+            <PhoneOff size={36} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-grow flex flex-col items-center justify-center w-full my-8">
-          <Image src="https://files.catbox.moe/p2f1gk.png" alt="Deniz Tuğrul" width={180} height={180} className={cn("rounded-full mx-auto shadow-2xl transition-all duration-300", isAIThinking && "ring-4 ring-cyan-400 ring-offset-4 ring-offset-gray-900 animate-pulse-once")} data-ai-hint="person face" />
-          
-          <div className="mt-12 h-10 text-center">
-            {isAIThinking && <p className="text-lg text-cyan-300 flex items-center gap-2"><Bot className="animate-spin" /> Danışman konuşuyor...</p>}
-            {isListening && <p className="text-lg text-red-400 flex items-center gap-2"><Mic className="animate-pulse" /> Sizi dinliyorum...</p>}
-          </div>
-      </div>
-
-
-      <div className="grid grid-cols-3 gap-x-8 gap-y-12 w-full max-w-sm mb-10">
-        <CallButton 
-          icon={isMuted ? <MicOff size={32} /> : <Mic size={32} />} 
-          label={isMuted ? 'Sesi Aç' : 'Sessize Al'} 
-          onClick={() => setIsMuted(!isMuted)} 
-          className="bg-white/20" 
-        />
-        <CallButton 
-            icon={<Volume2 size={32} />} 
-            label="Hoparlör" 
-            onClick={() => {}} 
-            className="bg-white/20"
-        />
-        <div /> 
-        <div /> 
-         <CallButton 
-          icon={<PhoneOff size={36} />} 
-          label="" 
-          onClick={() => onEndCall('answered')} 
-          className="bg-red-500 hover:bg-red-600" 
-        />
-        <div />
-      </div>
       <audio ref={audioPlayerRef} muted={isMuted} hidden />
     </div>
   );
