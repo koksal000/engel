@@ -1,15 +1,12 @@
-
 'use client';
 
-import { useState, useRef, type ChangeEvent, type FormEvent, useEffect } from 'react'; // Added useEffect
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState, useRef, type ChangeEvent, type FormEvent } from 'react';
+import { performAnalysisAction, type AnalysisResult } from '@/lib/actions';
+import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { performAnalysisAction, type AnalysisResult } from '@/lib/actions';
-import Image from 'next/image';
 import { AlertCircle, Loader2, UploadCloud } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
@@ -17,30 +14,15 @@ interface ImageUploadFormProps {
   onAnalysisComplete: (result: AnalysisResult) => void;
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Analiz Ediliyor...
-        </>
-      ) : (
-        'Ön Değerlendirme Testini Başlat'
-      )}
-    </Button>
-  );
-}
-
 export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
-  const [state, formAction, isPending] = useActionState(performAnalysisAction, null); 
-  
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [photoDataUri, setPhotoDataUri] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -49,7 +31,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
       reader.onloadend = () => {
         const result = reader.result as string;
         setImagePreview(result);
-        setPhotoDataUri(result); 
+        setPhotoDataUri(result);
       };
       reader.readAsDataURL(file);
     } else {
@@ -57,14 +39,30 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
       setPhotoDataUri('');
     }
   };
-  
-  // Corrected: useState changed to useEffect
-  useEffect(() => {
-    if (state?.data) {
-      onAnalysisComplete(state.data);
-    }
-  }, [state, onAnalysisComplete]);
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!photoDataUri) {
+        setError("Lütfen bir fotoğraf yükleyin.");
+        return;
+    }
+    setIsPending(true);
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+
+    const result = await performAnalysisAction(formData);
+
+    setIsPending(false);
+
+    if (result.error) {
+      setError(result.error);
+    } else if (result.data) {
+      onAnalysisComplete(result.data);
+    } else {
+      setError('Analiz sırasında bilinmeyen bir hata oluştu.');
+    }
+  };
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl">
@@ -75,7 +73,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Ad</Label>
             <Input id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Adınızı girin" />
@@ -86,7 +84,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="photo">Fotoğraf Yükle</Label>
-            <div 
+            <div
               className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md cursor-pointer hover:border-primary transition-colors"
               onClick={() => fileInputRef.current?.click()}
               onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
@@ -96,7 +94,7 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
             >
               <div className="space-y-1 text-center">
                 {imagePreview ? (
-                  <Image src={imagePreview} alt="Resim önizlemesi" width={128} height={128} className="mx-auto h-32 w-32 object-cover rounded-md" data-ai-hint="person face"/>
+                  <Image src={imagePreview} alt="Resim önizlemesi" width={128} height={128} className="mx-auto h-32 w-32 object-cover rounded-md" data-ai-hint="person face" />
                 ) : (
                   <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                 )}
@@ -106,35 +104,36 @@ export function ImageUploadForm({ onAnalysisComplete }: ImageUploadFormProps) {
                 <p className="text-xs text-muted-foreground">PNG, JPG, GIF 30MB'a kadar</p>
               </div>
             </div>
-            <Input 
-              id="photo" 
+            <Input
+              id="photo"
               name="photo"
-              type="file" 
-              accept="image/*" 
+              type="file"
+              accept="image/*"
               ref={fileInputRef}
-              onChange={handleImageChange} 
-              required 
+              onChange={handleImageChange}
               className="sr-only"
             />
             <input type="hidden" name="photoDataUri" value={photoDataUri} />
           </div>
-          
-          {state?.error && (
-             <Alert variant="destructive">
+
+          {error && (
+            <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Hata</AlertTitle>
-              <AlertDescription>{state.error}</AlertDescription>
-            </Alert>
-          )}
-          {state?.message && !state.data && !state.error && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Bilgi</AlertTitle>
-              <AlertDescription>{state.message}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <SubmitButton />
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analiz Ediliyor...
+              </>
+            ) : (
+              'Ön Değerlendirme Testini Başlat'
+            )}
+          </Button>
         </form>
       </CardContent>
     </Card>

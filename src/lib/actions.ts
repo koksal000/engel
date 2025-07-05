@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -14,13 +13,17 @@ export type AnalysisResult = AnalyzeImageForDisabilitiesOutput & {
   name: string;
   surname: string;
   photoDataUri: string;
-  // disabilityPercentage and disabilityTypes are already in AnalyzeImageForDisabilitiesOutput and optional
+};
+
+export type AnalysisActionState = {
+  message: string;
+  data?: AnalysisResult;
+  error?: string | null;
 };
 
 export async function performAnalysisAction(
-  prevState: any,
   formData: FormData
-): Promise<{ message: string; data?: AnalysisResult; error?: string }> {
+): Promise<AnalysisActionState> {
   const name = formData.get('name') as string;
   const surname = formData.get('surname') as string;
   const photoDataUri = formData.get('photoDataUri') as string;
@@ -52,6 +55,11 @@ export async function performAnalysisAction(
 
   try {
     const result = await analyzeImageForDisabilities(aiInput);
+
+    if (!result) {
+        throw new Error("AI analysis did not return a result.");
+    }
+
     return {
       message: 'Analiz başarılı.',
       data: {
