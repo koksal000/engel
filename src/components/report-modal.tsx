@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -107,9 +106,8 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     try {
         await addApplication(applicationData);
         toast({
-            title: "Başvuru Simülasyonu Başarısız Oldu",
-            description: `Gerekçe: ${randomReason}. Başvurunuz 'Geçmiş Başvurular' bölümüne kaydedildi.`,
-            variant: "destructive",
+            title: "Başvurunuz Gönderildi",
+            description: "Başvuru sürecini ve kabul durumunu 'Geçmiş Başvurular' bölümünden kontrol edebilirsiniz.",
             duration: 8000, 
         });
         setReferralSubmitted(true);
