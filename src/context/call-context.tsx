@@ -7,7 +7,7 @@ import { CallUI } from '@/components/call-ui';
 
 interface CallContextType {
   scheduleCall: (application: ApplicationData, delay: number) => void;
-  endCall: (status: 'answered' | 'rejected' | 'missed') => void;
+  endCall: (status: 'answered' | 'rejected') => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -24,9 +24,14 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const [incomingCall, setIncomingCall] = useState<ApplicationData | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
 
-  const endCall = useCallback(async (status: 'answered' | 'rejected' | 'missed') => {
+  const endCall = useCallback(async (status: 'answered' | 'rejected') => {
     if (activeCall) {
-        const duration = status === 'answered' ? Math.floor((new Date().getTime() - new Date(activeCall.date).getTime()) / 1000) : 0;
+        let duration = 0;
+        // The call date is reset to now when it's answered.
+        // So this calculation should be correct for answered calls.
+        if (status === 'answered' && activeCall.date) {
+             duration = Math.floor((new Date().getTime() - new Date(activeCall.date).getTime()) / 1000);
+        }
         const updatedCall = { ...activeCall, status, duration };
         await updateCall(updatedCall);
     }
@@ -35,8 +40,11 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   }, [activeCall]);
 
   const scheduleCall = useCallback((application: ApplicationData, delay: number) => {
+    // Prevent scheduling a new call if one is already active/incoming
+    if (activeCall || incomingCall) return;
+
     setTimeout(async () => {
-        const newCall: Call = {
+        const newCall: Omit<Call, 'id'> = {
             applicationId: application.id!,
             patientName: `${application.name} ${application.surname}`,
             status: 'missed', // Default to missed, will be updated on user action
@@ -47,7 +55,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
         setActiveCall({ ...newCall, id: callId });
         setIncomingCall(application);
     }, delay);
-  }, []);
+  }, [activeCall, incomingCall]);
 
   return (
     <CallContext.Provider value={{ scheduleCall, endCall }}>
@@ -57,11 +65,6 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
             callData={incomingCall} 
             activeCall={activeCall}
             onEndCall={endCall}
-            onAccept={() => {
-                const updatedCall = {...activeCall, status: 'answered' as const, date: new Date()};
-                setActiveCall(updatedCall);
-            }}
-            onReject={() => endCall('rejected')}
         />
       )}
     </CallContext.Provider>

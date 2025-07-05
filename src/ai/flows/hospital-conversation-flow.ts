@@ -11,6 +11,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
+// NOTE: This schema is duplicated from analyze-image-for-disabilities.ts
+// to avoid exporting a non-function from a 'use server' file.
 const AnalyzeImageForDisabilitiesOutputSchema = z.object({
   estimatedAge: z.number().describe('Tahmini yaş.'),
   humanLikenessPercentage: z.number().min(0).max(100).describe('İnsan benzerlik yüzdesi (0-100).'),
@@ -25,6 +27,7 @@ const AnalyzeImageForDisabilitiesOutputSchema = z.object({
   })).describe("Görüntü üzerinde kırmızı ışıklarla vurgulanacak koordinatların (x, y yüzdeleri) bir listesi. Açıklamalar Türkçe olmalıdır."),
   report: z.string().describe('Analizin kapsamlı bir raporu (Türkçe). Bu rapor kişinin genel durumu, olası engelleri, bu engellerin türleri (zihinsel, fiziksel, nörolojik vb.), etkilenen vücut bölgeleri ve genel sağlık içgörülerini detaylı bir şekilde açıklamalıdır. Mümkünse, tahmini bir engellilik yüzdesi belirtilmelidir.'),
 });
+
 
 const ConversationHistorySchema = z.object({
   role: z.enum(['user', 'model']),
@@ -66,9 +69,9 @@ const consultantPrompt = ai.definePrompt({
 # HASTA RAPOR BİLGİLERİ
 - **Ad Soyad:** {{patientAnalysis.name}} {{patientAnalysis.surname}}
 - **Tahmini Yaş:** {{patientAnalysis.estimatedAge}}
-- **Potansiyel Engellilik Yüzdesi:** {{patientAnalysis.disabilityPercentage}}%
-- **Potansiyel Engel Türleri:** {{#each patientAnalysis.disabilityTypes}}{{{this}}}{{/each}}
-- **Ön Değerlendirme Raporu:** {{{patientAnalysis.report}}}
+- **Potansiyel Engellilik Yüzdesi:** {{#if patientAnalysis.disabilityPercentage}}{{patientAnalysis.disabilityPercentage}}%{{else}}Belirtilmemiş{{/if}}
+- **Potansiyel Engel Türleri:** {{#if patientAnalysis.disabilityTypes}}{{#each patientAnalysis.disabilityTypes}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}Belirtilmemiş{{/if}}
+- **Ön Değerlendirme Raporu Özeti:** {{{patientAnalysis.report}}}
 
 # KONUŞMA GEÇMİŞİ
 {{#each conversationHistory}}
@@ -87,6 +90,12 @@ const hospitalConsultantFlow = ai.defineFlow(
     outputSchema: HospitalConsultantOutputSchema,
   },
   async (input) => {
+    // If conversation is empty, it's the first turn. Create a greeting.
+    if (input.conversationHistory.length === 0) {
+        const greeting = `Merhaba ${input.patientAnalysis.name} ${input.patientAnalysis.surname}, ben Deniz Tuğrul. Bakırköy Engellilik Değerlendirme Merkezi'nden arıyorum. Yapmış olduğunuz başvuru onaylandı, sonuçlarınız hakkında konuşmak için müsaitseniz size bilgi vermek isterim.`;
+        return greeting;
+    }
+    
     const { output } = await consultantPrompt(input);
     return output || "Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.";
   }
