@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Anasayfa', href: '/' },
-  { label: 'Engellilik Testi', href: '/' },
   { label: 'Geçmiş Başvurular', href: '/gecmis-basvurular' },
   { label: 'Geçmiş Aramalar', href: '/gecmis-aramalar' },
   { label: 'Hakkımızda', href: '/hakkimizda' },
@@ -67,14 +66,10 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right" className="w-[280px] p-0">
               <div className="flex flex-col h-full">
-                <SheetHeader className="p-6 flex flex-row items-center justify-between border-b space-y-0">
+                <SheetHeader className="p-6 border-b">
                   <SheetTitle>
                     <SiteLogo size="text-lg" />
                   </SheetTitle>
-                  <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
-                    <X className="h-5 w-5" />
-                    <span className="sr-only">Menüyü kapat</span>
-                  </Button>
                 </SheetHeader>
                 <nav className="flex-grow p-6 space-y-4">
                   {navItems.map((item) => (
