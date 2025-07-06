@@ -13,20 +13,17 @@ interface SpeechRecognitionErrorEvent extends Event {
 const SpeechRecognition =
   typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
-// The hook implements a turn-based system with silence detection.
 export const useSpeechRecognition = (onResult: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef('');
   
-  // Use a ref to hold the latest onResult callback to avoid dependency issues.
   const onResultRef = useRef(onResult);
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
-  // Use a ref to get the current listening state inside callbacks without adding it to dependency arrays.
   const isListeningRef = useRef(isListening);
   isListeningRef.current = isListening;
 
@@ -34,22 +31,24 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
     if (recognitionRef.current && isListeningRef.current) {
       try {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        recognitionRef.current.stop(); // This triggers the 'onend' event which sets isListening(false)
+        // The onend event will handle emitting the result and cleaning up.
+        recognitionRef.current.stop();
       } catch(e) {
-        // This can happen if recognition is already stopping. It's safe to ignore.
         if (e instanceof DOMException && e.name === 'InvalidStateError') {
-          // Recognition was already stopped.
+          // Already stopped, safe to ignore.
         } else {
           console.error("Speech recognition stop error:", e);
         }
       }
     }
-  }, []); // Stable: No dependencies.
+  }, []);
 
+  // This function's only job is to trigger the stop.
   const handleSilence = useCallback(() => {
-    stopListening();
-    onResultRef.current(transcriptRef.current);
-  }, [stopListening]); // Stable: Depends on a stable function.
+    if (isListeningRef.current) {
+      stopListening();
+    }
+  }, [stopListening]);
 
   useEffect(() => {
     if (!SpeechRecognition) {
@@ -66,13 +65,23 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       setIsListening(true);
     };
 
+    // onend is the single source of truth for when listening is over.
+    // It emits the final transcript, preventing race conditions.
     recognition.onend = () => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      
+      // Only emit the result if we were actively listening.
+      // This prevents emitting a result on an error-based stop.
+      if (isListeningRef.current) {
+        onResultRef.current(transcriptRef.current);
+      }
+      
       setIsListening(false);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('Speech recognition error:', event.error);
+      // Ensure we stop listening on error to prevent the UI from getting stuck.
       setIsListening(false);
     };
 
@@ -85,15 +94,14 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       }
       transcriptRef.current = fullTranscript;
 
-      // Reset the silence timer every time the user speaks.
-      silenceTimerRef.current = setTimeout(handleSilence, 2000);
+      // Reset silence timer. A more generous 2.5 seconds to allow for natural pauses.
+      silenceTimerRef.current = setTimeout(handleSilence, 2500);
     };
     
     recognitionRef.current = recognition;
 
     return () => {
       if (recognitionRef.current) {
-        // Clean up all event listeners and stop recognition on unmount
         recognitionRef.current.onstart = null;
         recognitionRef.current.onend = null;
         recognitionRef.current.onerror = null;
@@ -101,21 +109,21 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
         recognitionRef.current.stop();
       }
     };
-  }, [handleSilence]); // Stable: This effect should now run only once.
+  }, [handleSilence]); // handleSilence is stable due to useCallback.
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListeningRef.current) {
         try {
             transcriptRef.current = '';
             recognitionRef.current.start();
-            // Set initial timeout in case of no speech at all.
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = setTimeout(handleSilence, 2200);
+            // More generous initial timeout (3s) to allow the mic to properly start up.
+            silenceTimerRef.current = setTimeout(handleSilence, 3000);
         } catch (e) {
             console.error("Speech recognition start error:", e);
         }
     }
-  }, [handleSilence]); // Stable: Depends on a stable function.
+  }, [handleSilence]);
 
   return {
     isListening,
