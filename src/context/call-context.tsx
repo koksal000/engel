@@ -7,7 +7,7 @@ import { CallUI } from '@/components/call-ui';
 
 interface CallContextType {
   scheduleCall: (application: ApplicationData, delay: number) => void;
-  endCall: (status: 'answered' | 'rejected') => void;
+  endCall: (status: Call['status']) => void;
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -24,16 +24,19 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const [incomingCall, setIncomingCall] = useState<ApplicationData | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
 
-  const endCall = useCallback(async (status: 'answered' | 'rejected') => {
+  const endCall = useCallback(async (status: Call['status']) => {
     if (activeCall) {
         let duration = 0;
-        // The call date is reset to now when it's answered.
-        // So this calculation should be correct for answered calls.
         if (status === 'answered' && activeCall.date) {
              duration = Math.floor((new Date().getTime() - new Date(activeCall.date).getTime()) / 1000);
         }
-        const updatedCall = { ...activeCall, status, duration };
-        await updateCall(updatedCall);
+        
+        // Only update DB for terminal states initiated by user action.
+        // 'missed' is the default, and if the call times out, the DB record is already correct.
+        if (status === 'answered' || status === 'rejected') {
+            const updatedCall = { ...activeCall, status, duration };
+            await updateCall(updatedCall);
+        }
     }
     setIncomingCall(null);
     setActiveCall(null);

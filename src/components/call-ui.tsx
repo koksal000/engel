@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 interface CallUIProps {
   callData: ApplicationData;
   activeCall: Call;
-  onEndCall: (status: 'answered' | 'rejected') => void;
+  onEndCall: (status: Call['status']) => void;
 }
 
 const Keypad = ({ onClose, onNumberPress }: { onClose: () => void, onNumberPress: (num: string) => void }) => {
@@ -111,33 +111,46 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
 
 
-  // Effect to initialize audio elements and manage ringtone. Runs once on mount.
+  const endAndCleanUp = useCallback((status: Call['status']) => {
+    stopListening();
+    ringtoneRef.current?.pause();
+    audioPlayerRef.current?.pause();
+    onEndCall(status);
+  }, [onEndCall, stopListening]);
+  
+  // Effect to manage ringtone and missed call timeout
   useEffect(() => {
-    ringtoneRef.current = new Audio('https://files.catbox.moe/m9izjy.m4a');
-    ringtoneRef.current.loop = true;
-
-    audioPlayerRef.current = new Audio();
-    if(audioPlayerRef.current) {
-        audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;
-    }
-
     if (callStatus === 'incoming') {
-      const playPromise = ringtoneRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          if (error.name !== 'AbortError') {
-            console.error('Ringtone playback error:', error);
-          }
-        });
-      }
-    }
+      ringtoneRef.current = new Audio('https://files.catbox.moe/m9izjy.m4a');
+      ringtoneRef.current.loop = true;
+      ringtoneRef.current.play().catch(e => {
+        if (e.name !== 'AbortError') console.error('Ringtone playback error:', e);
+      });
 
+      const missedCallTimeout = setTimeout(() => {
+        toast({
+          title: "Cevapsız Arama",
+          description: `Deniz Tuğrul'dan gelen aramayı kaçırdınız.`,
+          variant: "default",
+        });
+        endAndCleanUp('missed');
+      }, 25000);
+
+      return () => {
+        ringtoneRef.current?.pause();
+        clearTimeout(missedCallTimeout);
+      };
+    }
+  }, [callStatus, endAndCleanUp, toast]);
+  
+  // Effect to initialize audio elements.
+  useEffect(() => {
+    audioPlayerRef.current = new Audio();
+    
     return () => {
-      ringtoneRef.current?.pause();
       audioPlayerRef.current?.pause();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
   
   // Effect to manage the AI audio player's 'ended' event for turn-based conversation.
   useEffect(() => {
@@ -179,18 +192,9 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   }, [callStatus]);
   
   const handleAccept = () => {
-    ringtoneRef.current?.pause();
     setCallStatus('active');
     handleAIResponse([]);
   };
-
-  const endAndCleanUp = (status: 'answered' | 'rejected') => {
-    stopListening();
-    ringtoneRef.current?.pause();
-    audioPlayerRef.current?.pause();
-    onEndCall(status);
-  };
-
 
   const handleReject = () => {
     endAndCleanUp('rejected');
