@@ -13,10 +13,36 @@ interface SpeechRecognitionErrorEvent extends Event {
 const SpeechRecognition =
   typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
+// The hook now implements a turn-based system with silence detection.
 export const useSpeechRecognition = (onResult: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriptRef = useRef('');
+  
+  // Use a ref to hold the latest onResult callback to avoid dependency issues in useEffect.
+  const onResultRef = useRef(onResult);
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current && isListening) {
+      try {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        recognitionRef.current.stop();
+      } catch(e) {
+        console.error("Speech recognition stop error:", e);
+      }
+    }
+  }, [isListening]);
+
+  // This function is called when silence is detected or the user stops speaking.
+  const handleSilence = useCallback(() => {
+    stopListening();
+    // Fire the callback with the accumulated transcript.
+    onResultRef.current(transcriptRef.current);
+  }, [stopListening]);
 
   useEffect(() => {
     if (!SpeechRecognition) {
@@ -34,6 +60,7 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
     };
 
     recognition.onend = () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       setIsListening(false);
     };
 
@@ -43,46 +70,41 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+      let fullTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        fullTranscript += event.results[i][0].transcript;
       }
-      if (finalTranscript) {
-        setTranscript(finalTranscript);
-        onResult(finalTranscript); // Callback with the final result
-      }
+      transcriptRef.current = fullTranscript;
+
+      // Reset the timer every time the user speaks. After 2s of silence, handleSilence is called.
+      silenceTimerRef.current = setTimeout(handleSilence, 2000);
     };
     
     recognitionRef.current = recognition;
 
-  }, [onResult]);
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, [handleSilence]);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && !isListening) {
         try {
-            setTranscript('');
+            transcriptRef.current = '';
             recognitionRef.current.start();
+            // Set initial timeout in case of no speech at all (e.g., user is silent).
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = setTimeout(handleSilence, 2200); // A bit longer to give user time
         } catch (e) {
             console.error("Speech recognition start error:", e);
         }
     }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-        try {
-            recognitionRef.current.stop();
-        } catch(e) {
-            console.error("Speech recognition stop error:", e);
-        }
-    }
-  }, []);
+  }, [isListening, handleSilence]);
 
   return {
     isListening,
-    transcript,
     startListening,
     stopListening,
     hasSupport: !!SpeechRecognition,

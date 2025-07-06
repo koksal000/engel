@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Keyboard, UserPlus, Video, Contact, X } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
@@ -60,7 +60,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
-  const handleAIResponse = async (convo: typeof conversation) => {
+  const handleAIResponse = useCallback(async (convo: typeof conversation) => {
       setIsAIThinking(true);
       try {
           const aiResponseText = await hospitalConsultant({
@@ -75,7 +75,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           if (audioPlayerRef.current) {
               audioPlayerRef.current.src = audioResponse.audioDataUri;
               audioPlayerRef.current.play().catch(e => {
-                // Catching potential AbortError if the call ends while AI is about to speak.
                 if (e.name !== 'AbortError') {
                   console.error('AI audio playback failed:', e);
                 }
@@ -83,20 +82,23 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           }
       } catch (error) {
           console.error("Error in conversation flow:", error);
-          // If there's an error, don't leave the user waiting.
           setIsAIThinking(false);
       }
-  }
+  }, [callData]);
 
-  const handleSpeechResult = async (text: string) => {
-    if (!text || isAIThinking) return;
-    stopListening();
-    const newConversation = [...conversation, { role: 'user' as const, text }];
-    setConversation(newConversation);
-    await handleAIResponse(newConversation);
-  };
+  const handleSpeechResult = useCallback(async (text: string) => {
+    if (isAIThinking) return;
+    
+    // Use functional update to get the latest conversation state
+    setConversation(prevConvo => {
+        const newConversation = [...prevConvo, { role: 'user' as const, text: text.trim() }];
+        handleAIResponse(newConversation);
+        return newConversation;
+    });
 
-  const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+  }, [isAIThinking, handleAIResponse]);
+
+  const { isListening, startListening } = useSpeechRecognition(handleSpeechResult);
 
   // Effect to initialize audio elements and manage ringtone. Runs once on mount.
   useEffect(() => {
@@ -104,7 +106,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     ringtoneRef.current.loop = true;
 
     audioPlayerRef.current = new Audio();
-    // Set initial volume
     if(audioPlayerRef.current) {
         audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;
     }
@@ -112,7 +113,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     if (callStatus === 'incoming') {
       const playPromise = ringtoneRef.current.play();
       if (playPromise !== undefined) {
-        // This catch prevents the "interrupted by a call to pause" unhandled rejection error.
         playPromise.catch(error => {
           if (error.name !== 'AbortError') {
             console.error('Ringtone playback error:', error);
@@ -124,13 +124,11 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     return () => {
       ringtoneRef.current?.pause();
       audioPlayerRef.current?.pause();
-      stopListening();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // This effect should only run once.
+  }, []); 
   
-  // Effect to manage the AI audio player's 'ended' event.
-  // This ensures the callback has the latest state.
+  // Effect to manage the AI audio player's 'ended' event for turn-based conversation.
   useEffect(() => {
     const player = audioPlayerRef.current;
     if (!player) return;
@@ -148,7 +146,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     };
   }, [callStatus, startListening]);
 
-    // Effect for speaker volume
+  // Effect for speaker volume
   useEffect(() => {
     if (audioPlayerRef.current) {
         audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;

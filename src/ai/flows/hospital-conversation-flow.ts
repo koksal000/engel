@@ -95,6 +95,12 @@ const hospitalConsultantFlow = ai.defineFlow(
         const greeting = `Merhaba ${input.patientAnalysis.name} ${input.patientAnalysis.surname}, ben Deniz Tuğrul. Bakırköy Engellilik Değerlendirme Merkezi'nden arıyorum. Yapmış olduğunuz başvuru onaylandı, sonuçlarınız hakkında konuşmak için müsaitseniz size bilgi vermek isterim.`;
         return greeting;
     }
+
+    const lastUserMessage = input.conversationHistory[input.conversationHistory.length - 1];
+    // Handle case where user was silent or speech was not recognized
+    if (lastUserMessage?.role === 'user' && !lastUserMessage.text.trim()) {
+        return "Sizi duyamadım, hala hatta mısınız?";
+    }
     
     const { output } = await consultantPrompt(input);
     return output || "Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.";
