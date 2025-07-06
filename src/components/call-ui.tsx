@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Keyboard, UserPlus, Video, Contact, X } from 'lucide-react';
+import { Phone, PhoneOff, Mic, Bot } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech-flow';
 import { hospitalConsultant } from '@/ai/flows/hospital-conversation-flow';
@@ -12,44 +12,12 @@ import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getCachedAudio, addCachedAudio } from '@/lib/db';
 
-const Keypad = ({ onClose, onNumberPress }: { onClose: () => void, onNumberPress: (num: string) => void }) => {
-  const keypadButtons = [
-    '1', '2', '3',
-    '4', '5', '6',
-    '7', '8', '9',
-    '*', '0', '#'
-  ];
-
-  return (
-    <div className="w-full max-w-xs mb-8 flex flex-col items-center animate-in fade-in-50 duration-300">
-      <div className="grid grid-cols-3 gap-4 w-full">
-        {keypadButtons.map(btn => (
-          <button
-            key={btn}
-            onClick={() => onNumberPress(btn)}
-            className="flex items-center justify-center h-16 w-16 rounded-full bg-white/10 text-white text-2xl font-light transition-colors hover:bg-white/20"
-          >
-            {btn}
-          </button>
-        ))}
-      </div>
-      <button onClick={onClose} className="mt-6 flex items-center justify-center h-12 w-12 rounded-full bg-white/20 hover:bg-white/30">
-        <X size={28} />
-      </button>
-    </div>
-  );
-};
-
-
 export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const [callStatus, setCallStatus] = useState<'incoming' | 'active'>('incoming');
-  const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [conversation, setConversation] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
   const [isAIThinking, setIsAIThinking] = useState(false);
-  
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
-  const [isKeypadVisible, setIsKeypadVisible] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const { toast } = useToast();
 
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
@@ -65,16 +33,14 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         });
 
         if (!aiResponseText?.trim()) {
-          console.warn("AI returned an empty response. Re-activating listener.");
+          console.warn("AI returned an empty response.");
           setIsAIThinking(false);
-          if (callStatus === 'active') startListening();
           return;
         }
 
         const updatedConversation = [...convo, { role: 'model' as const, text: aiResponseText }];
         setConversation(updatedConversation);
 
-        // --- Start of client-side caching logic ---
         let audioDataUri: string;
         const cachedAudio = await getCachedAudio(aiResponseText);
         
@@ -83,10 +49,8 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         } else {
             const audioResponse = await convertTextToSpeech(aiResponseText);
             audioDataUri = audioResponse.audioDataUri;
-            // Cache the newly generated audio for future use
             await addCachedAudio({ text: aiResponseText, audioDataUri });
         }
-        // --- End of client-side caching logic ---
 
         if (audioPlayerRef.current) {
           audioPlayerRef.current.src = audioDataUri;
@@ -99,34 +63,33 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       } catch (error) {
         console.error("Error in conversation flow:", error);
         setIsAIThinking(false);
-        if (callStatus === 'active') startListening();
       }
     }, 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callData, callStatus]);
+  }, [callData]);
 
   const handleSpeechResult = useCallback((text: string) => {
-    if (isAIThinking) return;
-    
-    setConversation(prevConvo => {
-        const newConversation = [...prevConvo, { role: 'user' as const, text: text.trim() }];
+    if (text.trim()) {
+        const newConversation = [...conversation, { role: 'user' as const, text: text.trim() }];
+        setConversation(newConversation);
         handleAIResponse(newConversation);
-        return newConversation;
-    });
-
-  }, [isAIThinking, handleAIResponse]);
+    } else {
+        // If user releases without speaking, AI just waits.
+        setIsAIThinking(false);
+    }
+  }, [conversation, handleAIResponse]);
   
   const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
-
 
   const endAndCleanUp = useCallback((status: Call['status']) => {
     stopListening();
     ringtoneRef.current?.pause();
-    audioPlayerRef.current?.pause();
+    if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current.src = "";
+    }
     onEndCall(status);
   }, [onEndCall, stopListening]);
   
-  // Effect to manage ringtone and missed call timeout
   useEffect(() => {
     if (callStatus === 'incoming') {
       ringtoneRef.current = new Audio('https://files.catbox.moe/m9izjy.m4a');
@@ -151,42 +114,22 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     }
   }, [callStatus, endAndCleanUp, toast]);
   
-  // Effect to initialize audio elements.
   useEffect(() => {
     audioPlayerRef.current = new Audio();
-    
-    return () => {
-      audioPlayerRef.current?.pause();
-    };
-  }, []);
-  
-  // Effect to manage the AI audio player's 'ended' event for turn-based conversation.
-  useEffect(() => {
     const player = audioPlayerRef.current;
-    if (!player) return;
 
     const handleAudioEnd = () => {
       setIsAIThinking(false);
-      if (callStatus === 'active') {
-        startListening();
-      }
     };
 
     player.addEventListener('ended', handleAudioEnd);
+    
     return () => {
       player.removeEventListener('ended', handleAudioEnd);
+      player.pause();
     };
-  }, [callStatus, startListening]);
+  }, []);
 
-  // Effect for speaker volume
-  useEffect(() => {
-    if (audioPlayerRef.current) {
-        audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;
-    }
-  }, [isSpeakerOn]);
-
-
-  // Effect to manage the call duration timer.
   useEffect(() => {
       let interval: NodeJS.Timeout;
       if (callStatus === 'active') {
@@ -211,15 +154,20 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const handleEndCall = () => {
     endAndCleanUp('answered');
   };
-
-  const handleNotImplemented = () => {
-    toast({
-        title: "Özellik Henüz Aktif Değil",
-        description: "Bu özellik gelecekteki güncellemelerde eklenecektir.",
-        variant: "default",
-    });
-  };
   
+  const handlePressToTalk = () => {
+    if (isAIThinking || isListening) return;
+    setIsRecording(true);
+    startListening();
+  };
+
+  const handleReleaseToTalk = () => {
+    if (isRecording) {
+      setIsRecording(false);
+      stopListening();
+    }
+  };
+
   const IncomingCallButton = ({ icon, label, onClick, className = '' }: any) => (
     <div className="flex flex-col items-center gap-2 text-center">
       <button onClick={onClick} className={`flex items-center justify-center w-16 h-16 rounded-full ${className}`}>
@@ -229,28 +177,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     </div>
   );
   
-  const CallActionButton = ({ icon, label, onClick, className = '' }: {
-    icon: React.ReactNode;
-    label: string;
-    onClick?: () => void;
-    className?: string;
-  }) => (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        onClick={onClick}
-        className={cn(
-            "flex items-center justify-center w-16 h-16 rounded-full bg-white/10 transition-colors",
-            "hover:bg-white/20",
-            className
-        )}
-      >
-        {React.cloneElement(icon as React.ReactElement, { size: 28 })}
-      </button>
-      <span className="text-sm text-gray-300">{label}</span>
-    </div>
-  );
-
-
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
     const secs = (seconds % 60).toString().padStart(2, '0');
@@ -273,7 +199,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     );
   }
 
-  // Active call screen
   return (
     <div data-call-status="active" className="fixed inset-0 bg-gray-900 text-white z-[100] flex flex-col p-4">
       <header className="absolute top-4 left-4">
@@ -286,25 +211,37 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         <h1 className="text-5xl font-thin tracking-wide">Deniz Tuğrul</h1>
         <p className="text-xl mt-2 text-gray-400">{formatDuration(callDuration)}</p>
 
-        <div className="mt-4 h-6 text-center">
-          {isAIThinking && <p className="text-base text-cyan-300 flex items-center gap-2"><Bot className="animate-spin h-4 w-4" /> Danışman konuşuyor...</p>}
-          {isListening && <p className="text-base text-red-400 flex items-center gap-2"><Mic className="animate-pulse h-4 w-4" /> Sizi dinliyorum...</p>}
+        <div className="mt-8 h-10 flex items-center justify-center text-lg">
+          {isAIThinking ? (
+            <p className="text-cyan-300 flex items-center gap-2 animate-pulse"><Bot className="h-5 w-5" /> Danışman konuşuyor...</p>
+          ) : isRecording ? (
+            <p className="text-red-400 flex items-center gap-2"><Mic className="animate-pulse h-5 w-5" /> Sizi dinliyorum...</p>
+          ) : (
+            <p className="text-gray-400">Konuşmak için butona basılı tutun</p>
+          )}
+        </div>
+
+        <div className="my-12">
+          <button
+            onMouseDown={handlePressToTalk}
+            onMouseUp={handleReleaseToTalk}
+            onTouchStart={handlePressToTalk}
+            onTouchEnd={handleReleaseToTalk}
+            disabled={isAIThinking || (isListening && !isRecording)}
+            className={cn(
+                "flex items-center justify-center w-28 h-28 rounded-full shadow-2xl transition-all duration-200 ease-in-out text-white focus:outline-none ring-4 ring-transparent focus:ring-blue-400",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                isRecording 
+                ? "bg-red-500 scale-110 shadow-red-500/50" 
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/50"
+            )}
+            aria-label="Konuşmak için basılı tutun"
+          >
+            <Mic size={56} />
+          </button>
         </div>
         
         <div className="flex-grow" />
-
-        {isKeypadVisible ? (
-            <Keypad onNumberPress={() => {}} onClose={() => setIsKeypadVisible(false)} />
-        ) : (
-            <div className="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-xs mb-8 animate-in fade-in-50 duration-300">
-            <CallActionButton icon={isMuted ? <MicOff /> : <Mic />} label="Sessiz" onClick={() => setIsMuted(!isMuted)} className={cn(isMuted && "!bg-white/80 !text-black")} />
-            <CallActionButton icon={<Keyboard />} label="Tuş Takımı" onClick={() => setIsKeypadVisible(true)} />
-            <CallActionButton icon={<Volume2 />} label="Hoparlör" onClick={() => setIsSpeakerOn(!isSpeakerOn)} className={cn(isSpeakerOn && "!bg-white/80 !text-black")} />
-            <CallActionButton icon={<UserPlus />} label="Arama Ekle" onClick={handleNotImplemented} />
-            <CallActionButton icon={<Video />} label="Görüntü" onClick={handleNotImplemented} />
-            <CallActionButton icon={<Contact />} label="Kişiler" onClick={handleNotImplemented} />
-            </div>
-        )}
 
         <div className="mb-8">
           <button onClick={handleEndCall} className="flex items-center justify-center w-20 h-20 bg-red-600 rounded-full hover:bg-red-700 transition-colors">
@@ -313,7 +250,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         </div>
       </div>
 
-      <audio ref={audioPlayerRef} muted={isMuted} hidden />
+      <audio ref={audioPlayerRef} hidden />
     </div>
   );
 }

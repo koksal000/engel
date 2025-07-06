@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// For typing purposes, as SpeechRecognition APIs are not standard on the window object yet.
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
   resultIndex: number;
@@ -16,39 +15,12 @@ const SpeechRecognition =
 export const useSpeechRecognition = (onResult: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef('');
-  
+
   const onResultRef = useRef(onResult);
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
-
-  const isListeningRef = useRef(isListening);
-  isListeningRef.current = isListening;
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListeningRef.current) {
-      try {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        // The onend event will handle emitting the result and cleaning up.
-        recognitionRef.current.stop();
-      } catch(e) {
-        if (e instanceof DOMException && e.name === 'InvalidStateError') {
-          // Already stopped, safe to ignore.
-        } else {
-          console.error("Speech recognition stop error:", e);
-        }
-      }
-    }
-  }, []);
-
-  // This function's only job is to trigger the stop.
-  const handleSilence = useCallback(() => {
-    if (isListeningRef.current) {
-      stopListening();
-    }
-  }, [stopListening]);
 
   useEffect(() => {
     if (!SpeechRecognition) {
@@ -60,42 +32,31 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'tr-TR';
-
+    
     recognition.onstart = () => {
+      transcriptRef.current = '';
       setIsListening(true);
     };
-
-    // onend is the single source of truth for when listening is over.
-    // It emits the final transcript, preventing race conditions.
+    
     recognition.onend = () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      
-      // Only emit the result if we were actively listening.
-      // This prevents emitting a result on an error-based stop.
-      if (isListeningRef.current) {
+      // isListening check prevents firing on error-triggered stops
+      if (isListening) {
         onResultRef.current(transcriptRef.current);
       }
-      
       setIsListening(false);
     };
-
+    
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('Speech recognition error:', event.error);
-      // Ensure we stop listening on error to prevent the UI from getting stuck.
       setIsListening(false);
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
       let fullTranscript = '';
       for (let i = 0; i < event.results.length; i++) {
         fullTranscript += event.results[i][0].transcript;
       }
       transcriptRef.current = fullTranscript;
-
-      // Reset silence timer. A more generous 2.5 seconds to allow for natural pauses.
-      silenceTimerRef.current = setTimeout(handleSilence, 2500);
     };
     
     recognitionRef.current = recognition;
@@ -106,24 +67,49 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
         recognitionRef.current.onend = null;
         recognitionRef.current.onerror = null;
         recognitionRef.current.onresult = null;
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch(e) {
+            // Ignore errors if already stopped
+        }
       }
     };
-  }, [handleSilence]); // handleSilence is stable due to useCallback.
+  // isListening is a dependency now, to re-bind onend handler correctly
+  // with the latest state. But onend should be stable with refs.
+  // The issue is onend needs the *current* isListening state.
+  // So, we'll keep the dependency array empty and use a ref for isListening.
+  }, []); // Run only once.
+
+  const isListeningRef = useRef(isListening);
+  isListeningRef.current = isListening;
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListeningRef.current) {
         try {
-            transcriptRef.current = '';
             recognitionRef.current.start();
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            // More generous initial timeout (3s) to allow the mic to properly start up.
-            silenceTimerRef.current = setTimeout(handleSilence, 3000);
         } catch (e) {
-            console.error("Speech recognition start error:", e);
+            if (e instanceof DOMException && e.name === 'InvalidStateError') {
+              // Already started, safe to ignore.
+            } else {
+              console.error("Speech recognition start error:", e);
+            }
         }
     }
-  }, [handleSilence]);
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current && isListeningRef.current) {
+        try {
+            recognitionRef.current.stop();
+        } catch (e) {
+            if (e instanceof DOMException && e.name === 'InvalidStateError') {
+              // Already stopped, safe to ignore.
+            } else {
+              console.error("Speech recognition stop error:", e);
+            }
+        }
+    }
+  }, []);
 
   return {
     isListening,
