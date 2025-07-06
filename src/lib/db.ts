@@ -5,9 +5,10 @@ import { openDB } from 'idb';
 import type { AnalysisResult } from './actions';
 
 const DB_NAME = 'bakirkoy-merkezi-db';
-const DB_VERSION = 2; // Incremented version for schema change
+const DB_VERSION = 3; // Incremented version for new cache store
 const APPLICATIONS_STORE_NAME = 'applications';
 const CALLS_STORE_NAME = 'calls';
+const TTS_CACHE_STORE_NAME = 'tts-cache'; // New store name
 
 export interface ApplicationData extends AnalysisResult {
   id?: number;
@@ -30,6 +31,10 @@ export interface Call {
     transcript?: { speaker: 'user' | 'consultant'; text: string }[];
 }
 
+export interface TtsCache {
+    text: string;
+    audioDataUri: string;
+}
 
 interface MyDB extends DBSchema {
   [APPLICATIONS_STORE_NAME]: {
@@ -41,6 +46,10 @@ interface MyDB extends DBSchema {
       key: number;
       value: Call;
       indexes: { 'by-applicationId': number };
+  };
+  [TTS_CACHE_STORE_NAME]: { // New cache store schema
+      key: string;
+      value: TtsCache;
   }
 }
 
@@ -64,6 +73,9 @@ const initDB = () => {
             autoIncrement: true,
         });
         store.createIndex('by-applicationId', 'applicationId');
+      }
+      if (!db.objectStoreNames.contains(TTS_CACHE_STORE_NAME)) { // Create new store
+        db.createObjectStore(TTS_CACHE_STORE_NAME, { keyPath: 'text' });
       }
     },
   });
@@ -102,3 +114,14 @@ export const updateCall = async (call: Call): Promise<number> => {
     const db = await initDB();
     return db.put(CALLS_STORE_NAME, call);
 }
+
+// TTS Cache Functions
+export const getCachedAudio = async (text: string): Promise<TtsCache | undefined> => {
+    const db = await initDB();
+    return db.get(TTS_CACHE_STORE_NAME, text);
+};
+
+export const addCachedAudio = async (cache: TtsCache): Promise<string> => {
+    const db = await initDB();
+    return db.put(TTS_CACHE_STORE_NAME, cache);
+};
