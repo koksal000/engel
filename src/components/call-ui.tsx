@@ -40,11 +40,16 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           const audioResponse = await convertTextToSpeech(aiResponseText);
           if (audioPlayerRef.current) {
               audioPlayerRef.current.src = audioResponse.audioDataUri;
-              audioPlayerRef.current.play();
+              audioPlayerRef.current.play().catch(e => {
+                // Catching potential AbortError if the call ends while AI is about to speak.
+                if (e.name !== 'AbortError') {
+                  console.error('AI audio playback failed:', e);
+                }
+              });
           }
       } catch (error) {
           console.error("Error in conversation flow:", error);
-          // Don't start listening if there was an error
+          // If there's an error, don't leave the user waiting.
           setIsAIThinking(false);
       }
   }
@@ -57,31 +62,56 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     await handleAIResponse(newConversation);
   };
 
-  const { isListening, startListening, stopListening, hasSupport } = useSpeechRecognition(handleSpeechResult);
+  const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
 
+  // Effect to initialize audio elements and manage ringtone. Runs once on mount.
   useEffect(() => {
     ringtoneRef.current = new Audio('https://files.catbox.moe/m9izjy.m4a');
     ringtoneRef.current.loop = true;
 
     audioPlayerRef.current = new Audio();
-    audioPlayerRef.current.onended = () => {
-      setIsAIThinking(false);
-      if(callStatus === 'active') {
-        startListening();
-      }
-    };
 
     if (callStatus === 'incoming') {
-      ringtoneRef.current.play();
+      const playPromise = ringtoneRef.current.play();
+      if (playPromise !== undefined) {
+        // This catch prevents the "interrupted by a call to pause" unhandled rejection error.
+        playPromise.catch(error => {
+          if (error.name !== 'AbortError') {
+            console.error('Ringtone playback error:', error);
+          }
+        });
+      }
     }
 
     return () => {
       ringtoneRef.current?.pause();
+      audioPlayerRef.current?.pause();
       stopListening();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // This effect should only run once.
   
+  // Effect to manage the AI audio player's 'ended' event.
+  // This ensures the callback has the latest state.
+  useEffect(() => {
+    const player = audioPlayerRef.current;
+    if (!player) return;
+
+    const handleAudioEnd = () => {
+      setIsAIThinking(false);
+      if (callStatus === 'active') {
+        startListening();
+      }
+    };
+
+    player.addEventListener('ended', handleAudioEnd);
+    return () => {
+      player.removeEventListener('ended', handleAudioEnd);
+    };
+  }, [callStatus, startListening]);
+
+
+  // Effect to manage the call duration timer.
   useEffect(() => {
       let interval: NodeJS.Timeout;
       if (callStatus === 'active') {
@@ -163,7 +193,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
 
   // Active call screen
   return (
-    <div className="fixed inset-0 bg-gray-900 text-white z-[100] flex flex-col p-4">
+    <div data-call-status="active" className="fixed inset-0 bg-gray-900 text-white z-[100] flex flex-col p-4">
       <header className="absolute top-4 left-4">
         <SiteLogo className="text-white !text-opacity-70" size="text-lg" />
       </header>
