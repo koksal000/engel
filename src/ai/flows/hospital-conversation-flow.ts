@@ -103,6 +103,9 @@ const hospitalConsultantFlow = ai.defineFlow(
     }
     
     const { output } = await consultantPrompt(input);
-    return output || "Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.";
+    if (output?.trim()) {
+        return output;
+    }
+    return "Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.";
   }
 );

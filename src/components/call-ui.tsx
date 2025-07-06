@@ -60,6 +60,8 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
+  const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
+  
   const handleAIResponse = useCallback(async (convo: typeof conversation) => {
       setIsAIThinking(true);
       try {
@@ -68,6 +70,13 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
               conversationHistory: convo,
           });
           
+          if (!aiResponseText?.trim()) {
+            console.warn("AI returned an empty response. Re-activating listener.");
+            setIsAIThinking(false);
+            if (callStatus === 'active') startListening();
+            return;
+          }
+
           const updatedConversation = [...convo, { role: 'model' as const, text: aiResponseText }];
           setConversation(updatedConversation);
 
@@ -83,13 +92,16 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       } catch (error) {
           console.error("Error in conversation flow:", error);
           setIsAIThinking(false);
+           if (callStatus === 'active') startListening();
       }
-  }, [callData]);
+  }, [callData, startListening, callStatus]);
 
+  // This callback is intentionally defined with useCallback to be stable,
+  // preventing re-renders in the speech recognition hook.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleSpeechResult = useCallback(async (text: string) => {
     if (isAIThinking) return;
     
-    // Use functional update to get the latest conversation state
     setConversation(prevConvo => {
         const newConversation = [...prevConvo, { role: 'user' as const, text: text.trim() }];
         handleAIResponse(newConversation);
@@ -98,7 +110,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
 
   }, [isAIThinking, handleAIResponse]);
 
-  const { isListening, startListening } = useSpeechRecognition(handleSpeechResult);
 
   // Effect to initialize audio elements and manage ringtone. Runs once on mount.
   useEffect(() => {
@@ -173,9 +184,20 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     handleAIResponse([]);
   };
 
-  const handleReject = () => {
+  const endAndCleanUp = (status: 'answered' | 'rejected') => {
+    stopListening();
     ringtoneRef.current?.pause();
-    onEndCall('rejected');
+    audioPlayerRef.current?.pause();
+    onEndCall(status);
+  };
+
+
+  const handleReject = () => {
+    endAndCleanUp('rejected');
+  };
+
+  const handleEndCall = () => {
+    endAndCleanUp('answered');
   };
 
   const handleNotImplemented = () => {
@@ -273,7 +295,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         )}
 
         <div className="mb-8">
-          <button onClick={() => onEndCall('answered')} className="flex items-center justify-center w-20 h-20 bg-red-600 rounded-full hover:bg-red-700 transition-colors">
+          <button onClick={handleEndCall} className="flex items-center justify-center w-20 h-20 bg-red-600 rounded-full hover:bg-red-700 transition-colors">
             <PhoneOff size={36} />
           </button>
         </div>
