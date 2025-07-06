@@ -13,36 +13,43 @@ interface SpeechRecognitionErrorEvent extends Event {
 const SpeechRecognition =
   typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
-// The hook now implements a turn-based system with silence detection.
+// The hook implements a turn-based system with silence detection.
 export const useSpeechRecognition = (onResult: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const transcriptRef = useRef('');
   
-  // Use a ref to hold the latest onResult callback to avoid dependency issues in useEffect.
+  // Use a ref to hold the latest onResult callback to avoid dependency issues.
   const onResultRef = useRef(onResult);
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
+  // Use a ref to get the current listening state inside callbacks without adding it to dependency arrays.
+  const isListeningRef = useRef(isListening);
+  isListeningRef.current = isListening;
+
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
+    if (recognitionRef.current && isListeningRef.current) {
       try {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        recognitionRef.current.stop();
+        recognitionRef.current.stop(); // This triggers the 'onend' event which sets isListening(false)
       } catch(e) {
-        console.error("Speech recognition stop error:", e);
+        // This can happen if recognition is already stopping. It's safe to ignore.
+        if (e instanceof DOMException && e.name === 'InvalidStateError') {
+          // Recognition was already stopped.
+        } else {
+          console.error("Speech recognition stop error:", e);
+        }
       }
     }
-  }, [isListening]);
+  }, []); // Stable: No dependencies.
 
-  // This function is called when silence is detected or the user stops speaking.
   const handleSilence = useCallback(() => {
     stopListening();
-    // Fire the callback with the accumulated transcript.
     onResultRef.current(transcriptRef.current);
-  }, [stopListening]);
+  }, [stopListening]); // Stable: Depends on a stable function.
 
   useEffect(() => {
     if (!SpeechRecognition) {
@@ -78,30 +85,37 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       }
       transcriptRef.current = fullTranscript;
 
-      // Reset the timer every time the user speaks. After 2s of silence, handleSilence is called.
+      // Reset the silence timer every time the user speaks.
       silenceTimerRef.current = setTimeout(handleSilence, 2000);
     };
     
     recognitionRef.current = recognition;
 
     return () => {
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        // Clean up all event listeners and stop recognition on unmount
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.stop();
+      }
     };
-  }, [handleSilence]);
+  }, [handleSilence]); // Stable: This effect should now run only once.
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    if (recognitionRef.current && !isListeningRef.current) {
         try {
             transcriptRef.current = '';
             recognitionRef.current.start();
-            // Set initial timeout in case of no speech at all (e.g., user is silent).
+            // Set initial timeout in case of no speech at all.
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = setTimeout(handleSilence, 2200); // A bit longer to give user time
+            silenceTimerRef.current = setTimeout(handleSilence, 2200);
         } catch (e) {
             console.error("Speech recognition start error:", e);
         }
     }
-  }, [isListening, handleSilence]);
+  }, [handleSilence]); // Stable: Depends on a stable function.
 
   return {
     isListening,
