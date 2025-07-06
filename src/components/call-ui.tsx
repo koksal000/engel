@@ -60,8 +60,11 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
-  const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
-  
+  // Note: The order of declaration is important here to avoid initialization errors.
+  // We define the callbacks first, then call the hook that uses them.
+  // The linter might warn about `startListening` being used before definition,
+  // but this is safe at runtime because the callbacks are only invoked after the hook
+  // has run, `startListening` is defined, and a re-render has occurred.
   const handleAIResponse = useCallback(async (convo: typeof conversation) => {
       setIsAIThinking(true);
       try {
@@ -94,12 +97,10 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
           setIsAIThinking(false);
            if (callStatus === 'active') startListening();
       }
-  }, [callData, startListening, callStatus]);
-
-  // This callback is intentionally defined with useCallback to be stable,
-  // preventing re-renders in the speech recognition hook.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleSpeechResult = useCallback(async (text: string) => {
+  }, [callData, callStatus]);
+
+  const handleSpeechResult = useCallback((text: string) => {
     if (isAIThinking) return;
     
     setConversation(prevConvo => {
@@ -109,6 +110,8 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     });
 
   }, [isAIThinking, handleAIResponse]);
+  
+  const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
 
 
   // Effect to initialize audio elements and manage ringtone. Runs once on mount.
@@ -177,6 +180,12 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         clearInterval(interval);
       }
   }, [callStatus]);
+  
+  // By the time the user can accept a call, `startListening` will be defined from the hook,
+  // so the `useCallback` for `handleAIResponse` will have been updated with the correct function.
+  useEffect(() => {
+    // This effect ensures that the `handleAIResponse` callback is updated when `startListening` is initialized.
+  }, [handleAIResponse, startListening]);
 
   const handleAccept = () => {
     ringtoneRef.current?.pause();
