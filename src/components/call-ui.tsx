@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { Phone, PhoneOff, Mic, Bot } from 'lucide-react';
+import { PhoneOff, Mic, Bot } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech-flow';
 import { hospitalConsultant } from '@/ai/flows/hospital-conversation-flow';
@@ -11,6 +11,12 @@ import { SiteLogo } from './site-logo';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getCachedAudio, addCachedAudio } from '@/lib/db';
+
+interface CallUIProps {
+  callData: ApplicationData;
+  activeCall: Call;
+  onEndCall: (status: Call['status']) => void;
+}
 
 export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const [callStatus, setCallStatus] = useState<'incoming' | 'active'>('incoming');
@@ -33,7 +39,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         });
 
         if (!aiResponseText?.trim()) {
-          console.warn("AI returned an empty response.");
+          console.warn("AI returned an empty response. Re-enabling mic.");
           setIsAIThinking(false);
           return;
         }
@@ -62,22 +68,20 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         }
       } catch (error) {
         console.error("Error in conversation flow:", error);
+        // On error, still allow user to try again
         setIsAIThinking(false);
       }
     }, 0);
   }, [callData]);
 
   const handleSpeechResult = useCallback((text: string) => {
-    if (text.trim()) {
-        const newConversation = [...conversation, { role: 'user' as const, text: text.trim() }];
-        setConversation(newConversation);
-        handleAIResponse(newConversation);
-    } else {
-        // If user releases without speaking, AI just waits.
-        setIsAIThinking(false);
-    }
+    // Always add the user's turn to the conversation, even if it's empty.
+    // The AI flow is designed to handle this by asking "Can you repeat that?".
+    const newConversation = [...conversation, { role: 'user' as const, text: text.trim() }];
+    setConversation(newConversation);
+    handleAIResponse(newConversation);
   }, [conversation, handleAIResponse]);
-  
+
   const { isListening, startListening, stopListening } = useSpeechRecognition(handleSpeechResult);
 
   const endAndCleanUp = useCallback((status: Call['status']) => {
@@ -89,14 +93,12 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     }
     onEndCall(status);
   }, [onEndCall, stopListening]);
-  
+
   useEffect(() => {
     if (callStatus === 'incoming') {
       ringtoneRef.current = new Audio('https://files.catbox.moe/m9izjy.m4a');
       ringtoneRef.current.loop = true;
-      ringtoneRef.current.play().catch(e => {
-        if (e.name !== 'AbortError') console.error('Ringtone playback error:', e);
-      });
+      ringtoneRef.current.play().catch(e => console.error('Ringtone playback error:', e));
 
       const missedCallTimeout = setTimeout(() => {
         toast({
@@ -113,7 +115,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       };
     }
   }, [callStatus, endAndCleanUp, toast]);
-  
+
   useEffect(() => {
     audioPlayerRef.current = new Audio();
     const player = audioPlayerRef.current;
@@ -137,11 +139,9 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
               setCallDuration(prev => prev + 1);
           }, 1000);
       }
-      return () => {
-        clearInterval(interval);
-      }
+      return () => clearInterval(interval);
   }, [callStatus]);
-  
+
   const handleAccept = () => {
     setCallStatus('active');
     handleAIResponse([]);
@@ -154,7 +154,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const handleEndCall = () => {
     endAndCleanUp('answered');
   };
-  
+
   const handlePressToTalk = () => {
     if (isAIThinking || isListening) return;
     setIsRecording(true);
@@ -167,7 +167,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       stopListening();
     }
   };
-
+  
   const IncomingCallButton = ({ icon, label, onClick, className = '' }: any) => (
     <div className="flex flex-col items-center gap-2 text-center">
       <button onClick={onClick} className={`flex items-center justify-center w-16 h-16 rounded-full ${className}`}>
@@ -193,7 +193,7 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         </div>
         <div className="flex justify-between w-full max-w-xs mb-10">
           <IncomingCallButton icon={<PhoneOff size={32} />} label="Reddet" onClick={handleReject} className="bg-red-500 hover:bg-red-600" />
-          <IncomingCallButton icon={<Phone size={32} />} label="Aç" onClick={handleAccept} className="bg-green-500 hover:bg-green-600" />
+          <IncomingCallButton icon={<Mic size={32} />} label="Aç" onClick={handleAccept} className="bg-green-500 hover:bg-green-600" />
         </div>
       </div>
     );

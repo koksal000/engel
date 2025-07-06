@@ -17,11 +17,13 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptRef = useRef('');
 
+  // Use a ref for the callback to avoid re-creating the effect when the callback changes.
   const onResultRef = useRef(onResult);
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
+  // Setup recognition engine only once.
   useEffect(() => {
     if (!SpeechRecognition) {
       console.error('Speech recognition not supported in this browser.');
@@ -38,11 +40,11 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       setIsListening(true);
     };
     
+    // This is the key handler for push-to-talk. It fires when recognition.stop() is called.
     recognition.onend = () => {
-      // isListening check prevents firing on error-triggered stops
-      if (isListening) {
-        onResultRef.current(transcriptRef.current);
-      }
+      // The onResult callback is now called unconditionally on 'end'.
+      // This ensures that when stopListening() is called, the result is always processed.
+      onResultRef.current(transcriptRef.current);
       setIsListening(false);
     };
     
@@ -51,16 +53,18 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       setIsListening(false);
     };
 
+    // Accumulate transcript from result chunks.
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let fullTranscript = '';
+      let finalTranscript = '';
       for (let i = 0; i < event.results.length; i++) {
-        fullTranscript += event.results[i][0].transcript;
+        finalTranscript += event.results[i][0].transcript;
       }
-      transcriptRef.current = fullTranscript;
+      transcriptRef.current = finalTranscript;
     };
     
     recognitionRef.current = recognition;
 
+    // Cleanup function to stop recognition and remove listeners when the component unmounts.
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.onstart = null;
@@ -74,17 +78,10 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
         }
       }
     };
-  // isListening is a dependency now, to re-bind onend handler correctly
-  // with the latest state. But onend should be stable with refs.
-  // The issue is onend needs the *current* isListening state.
-  // So, we'll keep the dependency array empty and use a ref for isListening.
-  }, []); // Run only once.
-
-  const isListeningRef = useRef(isListening);
-  isListeningRef.current = isListening;
+  }, []); // Empty dependency array ensures this runs only once on mount.
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListeningRef.current) {
+    if (recognitionRef.current && !isListening) { // Directly use state here
         try {
             recognitionRef.current.start();
         } catch (e) {
@@ -95,10 +92,10 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
             }
         }
     }
-  }, []);
+  }, [isListening]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListeningRef.current) {
+    if (recognitionRef.current && isListening) { // Directly use state here
         try {
             recognitionRef.current.stop();
         } catch (e) {
@@ -109,7 +106,7 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
             }
         }
     }
-  }, []);
+  }, [isListening]);
 
   return {
     isListening,
