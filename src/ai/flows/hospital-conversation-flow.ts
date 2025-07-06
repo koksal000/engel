@@ -55,7 +55,7 @@ export async function hospitalConsultant(input: HospitalConsultantInput): Promis
 const consultantPrompt = ai.definePrompt({
     name: 'hospitalConsultantPrompt',
     input: { schema: HospitalConsultantInputSchema },
-    output: { schema: HospitalConsultantOutputSchema },
+    output: { schema: HospitalConsultantOutputSchema.nullable() },
     prompt: `Sen, Bakırköy Ruh ve Sinir Hastalıkları Hastanesi'nde görevli, Deniz Tuğrul adında bir danışmansın. Görevin, ön değerlendirme raporu sonuçları hakkında hastalarla empatik, bilgilendirici ve profesyonel bir telefon görüşmesi yapmaktır.
 
 # GÖREVİN
@@ -103,7 +103,7 @@ const hospitalConsultantFlow = ai.defineFlow(
     }
     
     const { output } = await consultantPrompt(input);
-    if (output?.trim()) {
+    if (output && output.trim()) {
         return output;
     }
     return "Üzgünüm, şu anda bir sorun yaşıyorum. Lütfen daha sonra tekrar deneyin.";
