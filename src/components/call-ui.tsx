@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Keyboard, UserPlus, Video, Contact } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Bot, Volume2, Keyboard, UserPlus, Video, Contact, X } from 'lucide-react';
 import type { ApplicationData, Call } from '@/lib/db';
 import { convertTextToSpeech } from '@/ai/flows/text-to-speech-flow';
 import { hospitalConsultant } from '@/ai/flows/hospital-conversation-flow';
@@ -9,12 +9,42 @@ import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 import { cn } from '@/lib/utils';
 import { SiteLogo } from './site-logo';
 import React from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface CallUIProps {
   callData: ApplicationData;
   activeCall: Call;
   onEndCall: (status: 'answered' | 'rejected') => void;
 }
+
+const Keypad = ({ onClose, onNumberPress }: { onClose: () => void, onNumberPress: (num: string) => void }) => {
+  const keypadButtons = [
+    '1', '2', '3',
+    '4', '5', '6',
+    '7', '8', '9',
+    '*', '0', '#'
+  ];
+
+  return (
+    <div className="w-full max-w-xs mb-8 flex flex-col items-center animate-in fade-in-50 duration-300">
+      <div className="grid grid-cols-3 gap-4 w-full">
+        {keypadButtons.map(btn => (
+          <button
+            key={btn}
+            onClick={() => onNumberPress(btn)}
+            className="flex items-center justify-center h-16 w-16 rounded-full bg-white/10 text-white text-2xl font-light transition-colors hover:bg-white/20"
+          >
+            {btn}
+          </button>
+        ))}
+      </div>
+      <button onClick={onClose} className="mt-6 flex items-center justify-center h-12 w-12 rounded-full bg-white/20 hover:bg-white/30">
+        <X size={28} />
+      </button>
+    </div>
+  );
+};
+
 
 export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const [callStatus, setCallStatus] = useState<'incoming' | 'active'>('incoming');
@@ -23,6 +53,10 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const [conversation, setConversation] = useState<{ role: 'user' | 'model'; text: string }[]>([]);
   const [isAIThinking, setIsAIThinking] = useState(false);
   
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+  const [isKeypadVisible, setIsKeypadVisible] = useState(false);
+  const { toast } = useToast();
+
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
@@ -70,6 +104,10 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     ringtoneRef.current.loop = true;
 
     audioPlayerRef.current = new Audio();
+    // Set initial volume
+    if(audioPlayerRef.current) {
+        audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;
+    }
 
     if (callStatus === 'incoming') {
       const playPromise = ringtoneRef.current.play();
@@ -110,6 +148,13 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     };
   }, [callStatus, startListening]);
 
+    // Effect for speaker volume
+  useEffect(() => {
+    if (audioPlayerRef.current) {
+        audioPlayerRef.current.volume = isSpeakerOn ? 1.0 : 0.4;
+    }
+  }, [isSpeakerOn]);
+
 
   // Effect to manage the call duration timer.
   useEffect(() => {
@@ -134,6 +179,14 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     ringtoneRef.current?.pause();
     onEndCall('rejected');
   };
+
+  const handleNotImplemented = () => {
+    toast({
+        title: "Özellik Henüz Aktif Değil",
+        description: "Bu özellik gelecekteki güncellemelerde eklenecektir.",
+        variant: "default",
+    });
+  };
   
   const IncomingCallButton = ({ icon, label, onClick, className = '' }: any) => (
     <div className="flex flex-col items-center gap-2 text-center">
@@ -144,21 +197,18 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
     </div>
   );
   
-  const CallActionButton = ({ icon, label, onClick, disabled = false, className = '' }: {
+  const CallActionButton = ({ icon, label, onClick, className = '' }: {
     icon: React.ReactNode;
     label: string;
     onClick?: () => void;
-    disabled?: boolean;
     className?: string;
   }) => (
     <div className="flex flex-col items-center gap-2">
       <button
         onClick={onClick}
-        disabled={disabled}
         className={cn(
             "flex items-center justify-center w-16 h-16 rounded-full bg-white/10 transition-colors",
             "hover:bg-white/20",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/10",
             className
         )}
       >
@@ -211,14 +261,18 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         
         <div className="flex-grow" />
 
-        <div className="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-xs mb-8">
-          <CallActionButton icon={isMuted ? <MicOff /> : <Mic />} label="Sessiz" onClick={() => setIsMuted(!isMuted)} className={cn(isMuted && "!bg-white/80 !text-black")} />
-          <CallActionButton icon={<Keyboard />} label="Tuş Takımı" disabled />
-          <CallActionButton icon={<Volume2 />} label="Hoparlör" disabled />
-          <CallActionButton icon={<UserPlus />} label="Arama Ekle" disabled />
-          <CallActionButton icon={<Video />} label="Görüntü" disabled />
-          <CallActionButton icon={<Contact />} label="Kişiler" disabled />
-        </div>
+        {isKeypadVisible ? (
+            <Keypad onNumberPress={() => {}} onClose={() => setIsKeypadVisible(false)} />
+        ) : (
+            <div className="grid grid-cols-3 gap-x-8 gap-y-6 w-full max-w-xs mb-8 animate-in fade-in-50 duration-300">
+            <CallActionButton icon={isMuted ? <MicOff /> : <Mic />} label="Sessiz" onClick={() => setIsMuted(!isMuted)} className={cn(isMuted && "!bg-white/80 !text-black")} />
+            <CallActionButton icon={<Keyboard />} label="Tuş Takımı" onClick={() => setIsKeypadVisible(true)} />
+            <CallActionButton icon={<Volume2 />} label="Hoparlör" onClick={() => setIsSpeakerOn(!isSpeakerOn)} className={cn(isSpeakerOn && "!bg-white/80 !text-black")} />
+            <CallActionButton icon={<UserPlus />} label="Arama Ekle" onClick={handleNotImplemented} />
+            <CallActionButton icon={<Video />} label="Görüntü" onClick={handleNotImplemented} />
+            <CallActionButton icon={<Contact />} label="Kişiler" onClick={handleNotImplemented} />
+            </div>
+        )}
 
         <div className="mb-8">
           <button onClick={() => onEndCall('answered')} className="flex items-center justify-center w-20 h-20 bg-red-600 rounded-full hover:bg-red-700 transition-colors">
