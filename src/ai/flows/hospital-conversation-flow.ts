@@ -17,7 +17,7 @@ const AnalyzeImageForDisabilitiesOutputSchema = z.object({
   estimatedAge: z.number().describe('Tahmini yaş.'),
   humanLikenessPercentage: z.number().min(0).max(100).describe('İnsan benzerlik yüzdesi (0-100).'),
   potentialDisabilities: z.array(z.string()).describe('Potansiyel engellerin bir listesi (Türkçe).'),
-  disabilityPercentage: z.number().min(0).max(100).optional().describe('Tahmini engellilik yüzdesi (0-100) (Türkçe).'),
+  disabilityPercentage: z.number().min(0).max(100).describe('Tahmini engellilik yüzdesi (0-100) (Türkçe).'),
   disabilityTypes: z.array(z.string()).optional().describe('Belirlenen engellilik türleri (örneğin, zihinsel, fiziksel, nörolojik, duyusal, gelişimsel, diğer) (Türkçe).'),
   affectedBodyAreas: z.array(z.string()).describe('Etkilenen vücut bölgelerinin bir listesi (Türkçe).'),
   redLightAreas: z.array(z.object({

@@ -92,7 +92,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
     e.preventDefault();
     setIsSubmittingReferral(true);
 
-    const isApproved = Math.random() < 0.2; // 20% chance of approval
+    const isApproved = Math.random() < 0.5; // 50% chance of approval
     const status = isApproved ? 'onaylandı' : 'reddedildi';
     const randomReason = rejectionReasons[Math.floor(Math.random() * rejectionReasons.length)];
     
@@ -285,7 +285,7 @@ export function ReportModal({ isOpen, onClose, reportData }: ReportModalProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl"><Hospital className="text-accent"/> Hastane Sevk Simülasyonu</CardTitle>
                 <DialogDescription>
-                  Bakırköy Engellilik Değerlendirme Merkezi'ne sevk simülasyonu yapın. Başvurunuzun %20 ihtimalle onaylanacağını ve onaylanırsa 30-60 saniye içinde bir danışmanın sizi arayacağını unutmayın.
+                  Bakırköy Engellilik Değerlendirme Merkezi'ne sevk simülasyonu yapın. Başvurunuzun %50 ihtimalle onaylanacağını ve onaylanırsa 30-60 saniye içinde bir danışmanın sizi arayacağını unutmayın.
                 </DialogDescription>
               </CardHeader>
               <CardContent>

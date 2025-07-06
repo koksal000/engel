@@ -1,4 +1,3 @@
-
 // Use server directive.
 'use server';
 
@@ -28,7 +27,7 @@ const AnalyzeImageForDisabilitiesOutputSchema = z.object({
   estimatedAge: z.number().describe('Tahmini yaş.'),
   humanLikenessPercentage: z.number().min(0).max(100).describe('İnsan benzerlik yüzdesi (0-100).'),
   potentialDisabilities: z.array(z.string()).describe('Potansiyel engellerin bir listesi (Türkçe).'),
-  disabilityPercentage: z.number().min(0).max(100).optional().describe('Tahmini engellilik yüzdesi (0-100) (Türkçe).'),
+  disabilityPercentage: z.number().min(0).max(100).describe('Tahmini engellilik yüzdesi (0-100) (Türkçe).'),
   disabilityTypes: z.array(z.string()).optional().describe('Belirlenen engellilik türleri (örneğin, zihinsel, fiziksel, nörolojik, duyusal, gelişimsel, diğer) (Türkçe).'),
   affectedBodyAreas: z.array(z.string()).describe('Etkilenen vücut bölgelerinin bir listesi (Türkçe).'),
   redLightAreas: z.array(z.object({
@@ -66,7 +65,7 @@ You must consider a wide range of visual indicators, including but not limited t
 1.  **\`estimatedAge\`**: (number) Your best estimate of the person's age.
 2.  **\`humanLikenessPercentage\`**: (number) The percentage of human likeness in the image (0-100).
 3.  **\`potentialDisabilities\`**: (array of strings) A high-level list of potential disabilities identified (in Turkish).
-4.  **\`disabilityPercentage\`**: (number, optional) An estimated overall disability percentage (0-100), if there is sufficient evidence to make an estimate.
+4.  **\`disabilityPercentage\`**: (number) An estimated overall disability percentage (0-100). You must provide an estimate, even if it is a low percentage. If no disability is detected, provide 0.
 5.  **\`disabilityTypes\`**: (array of strings, optional) A list of specific disability categories observed (e.g., "Fiziksel", "Zihinsel", "Nörolojik", "Duyusal", "Gelişimsel", "Diğer").
 6.  **\`affectedBodyAreas\`**: (array of strings) A list of body areas where indicators of disability are most pronounced (in Turkish).
 7.  **\`redLightAreas\`**: (array of objects) A list of coordinates on the image to highlight with a red light. Each object must have \`x\` and \`y\` (0-100) and an optional \`description\` (in Turkish) explaining the concern at that point.
@@ -98,7 +97,7 @@ This is the most critical part of your output. The report must be written in for
 
 **5. Sonuç ve Öneriler:**
    - Summarize the key findings of the preliminary analysis.
-   - Provide the estimated disability percentage here if calculated.
+   - Provide the estimated disability percentage here.
    - **Crucially, end with a strong and clear disclaimer:** "Bu rapor, yapay zeka tarafından bir görüntüye dayanarak oluşturulmuş bir ön değerlendirmedir ve hiçbir şekilde tıbbi bir teşhis niteliği taşımaz. Kesin tanı, tedavi ve resmi engellilik tespiti için mutlaka yetkili bir sağlık kuruluşuna ve uzman doktorlara başvurulması gerekmektedir."
 ---
 
