@@ -10,12 +10,7 @@ import { cn } from '@/lib/utils';
 import { SiteLogo } from './site-logo';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
-
-interface CallUIProps {
-  callData: ApplicationData;
-  activeCall: Call;
-  onEndCall: (status: Call['status']) => void;
-}
+import { getCachedAudio, addCachedAudio } from '@/lib/db';
 
 const Keypad = ({ onClose, onNumberPress }: { onClose: () => void, onNumberPress: (num: string) => void }) => {
   const keypadButtons = [
@@ -79,9 +74,22 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
         const updatedConversation = [...convo, { role: 'model' as const, text: aiResponseText }];
         setConversation(updatedConversation);
 
-        const audioResponse = await convertTextToSpeech(aiResponseText);
+        // --- Start of client-side caching logic ---
+        let audioDataUri: string;
+        const cachedAudio = await getCachedAudio(aiResponseText);
+        
+        if (cachedAudio) {
+            audioDataUri = cachedAudio.audioDataUri;
+        } else {
+            const audioResponse = await convertTextToSpeech(aiResponseText);
+            audioDataUri = audioResponse.audioDataUri;
+            // Cache the newly generated audio for future use
+            await addCachedAudio({ text: aiResponseText, audioDataUri });
+        }
+        // --- End of client-side caching logic ---
+
         if (audioPlayerRef.current) {
-          audioPlayerRef.current.src = audioResponse.audioDataUri;
+          audioPlayerRef.current.src = audioDataUri;
           audioPlayerRef.current.play().catch(e => {
             if (e.name !== 'AbortError') {
               console.error('AI audio playback failed:', e);

@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Converts text to speech using Google's TTS model, with caching.
+ * @fileOverview Converts text to speech using Google's TTS model.
  * 
  * - convertTextToSpeech - A function that takes text and returns audio data.
  * - TextToSpeechInputSchema - The input type for the convertTextToSpeech function.
@@ -11,7 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { getCachedAudio, addCachedAudio } from '@/lib/db'; // Import caching functions
 
 const TextToSpeechInputSchema = z.string().describe("The text to be converted to speech.");
 export type TextToSpeechInput = z.infer<typeof TextToSpeechInputSchema>;
@@ -56,13 +55,8 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async (text) => {
-    // 1. Check cache first
-    const cached = await getCachedAudio(text);
-    if (cached) {
-      return { audioDataUri: cached.audioDataUri };
-    }
-
-    // 2. If not in cache, generate audio
+    // Caching is now handled on the client-side to avoid this server flow
+    // calling client-side IndexedDB functions.
     try {
         const { media } = await ai.generate({
           model: 'googleai/gemini-2.5-flash-preview-tts',
@@ -88,9 +82,6 @@ const textToSpeechFlow = ai.defineFlow(
 
         const wavBase64 = await toWav(audioBuffer);
         const audioDataUri = 'data:audio/wav;base64,' + wavBase64;
-
-        // 3. Save the new audio to the cache
-        await addCachedAudio({ text, audioDataUri });
         
         return { audioDataUri };
 
