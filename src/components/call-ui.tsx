@@ -60,43 +60,40 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
-  // Note: The order of declaration is important here to avoid initialization errors.
-  // We define the callbacks first, then call the hook that uses them.
-  // The linter might warn about `startListening` being used before definition,
-  // but this is safe at runtime because the callbacks are only invoked after the hook
-  // has run, `startListening` is defined, and a re-render has occurred.
-  const handleAIResponse = useCallback(async (convo: typeof conversation) => {
+  const handleAIResponse = useCallback((convo: typeof conversation) => {
+    setTimeout(async () => {
       setIsAIThinking(true);
       try {
-          const aiResponseText = await hospitalConsultant({
-              patientAnalysis: { ...callData },
-              conversationHistory: convo,
-          });
-          
-          if (!aiResponseText?.trim()) {
-            console.warn("AI returned an empty response. Re-activating listener.");
-            setIsAIThinking(false);
-            if (callStatus === 'active') startListening();
-            return;
-          }
+        const aiResponseText = await hospitalConsultant({
+          patientAnalysis: { ...callData },
+          conversationHistory: convo,
+        });
 
-          const updatedConversation = [...convo, { role: 'model' as const, text: aiResponseText }];
-          setConversation(updatedConversation);
-
-          const audioResponse = await convertTextToSpeech(aiResponseText);
-          if (audioPlayerRef.current) {
-              audioPlayerRef.current.src = audioResponse.audioDataUri;
-              audioPlayerRef.current.play().catch(e => {
-                if (e.name !== 'AbortError') {
-                  console.error('AI audio playback failed:', e);
-                }
-              });
-          }
-      } catch (error) {
-          console.error("Error in conversation flow:", error);
+        if (!aiResponseText?.trim()) {
+          console.warn("AI returned an empty response. Re-activating listener.");
           setIsAIThinking(false);
-           if (callStatus === 'active') startListening();
+          if (callStatus === 'active') startListening();
+          return;
+        }
+
+        const updatedConversation = [...convo, { role: 'model' as const, text: aiResponseText }];
+        setConversation(updatedConversation);
+
+        const audioResponse = await convertTextToSpeech(aiResponseText);
+        if (audioPlayerRef.current) {
+          audioPlayerRef.current.src = audioResponse.audioDataUri;
+          audioPlayerRef.current.play().catch(e => {
+            if (e.name !== 'AbortError') {
+              console.error('AI audio playback failed:', e);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error in conversation flow:", error);
+        setIsAIThinking(false);
+        if (callStatus === 'active') startListening();
       }
+    }, 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callData, callStatus]);
 
@@ -181,12 +178,6 @@ export function CallUI({ callData, activeCall, onEndCall }: CallUIProps) {
       }
   }, [callStatus]);
   
-  // By the time the user can accept a call, `startListening` will be defined from the hook,
-  // so the `useCallback` for `handleAIResponse` will have been updated with the correct function.
-  useEffect(() => {
-    // This effect ensures that the `handleAIResponse` callback is updated when `startListening` is initialized.
-  }, [handleAIResponse, startListening]);
-
   const handleAccept = () => {
     ringtoneRef.current?.pause();
     setCallStatus('active');
