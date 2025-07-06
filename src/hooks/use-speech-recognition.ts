@@ -1,8 +1,15 @@
-// @ts-nocheck
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Polyfill for browsers that don't support it
+// For typing purposes, as SpeechRecognition APIs are not standard on the window object yet.
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
 const SpeechRecognition =
   typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 
@@ -30,12 +37,12 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
       setIsListening(false);
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
     };
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
@@ -52,18 +59,26 @@ export const useSpeechRecognition = (onResult: (transcript: string) => void) => 
 
   }, [onResult]);
 
-  const startListening = () => {
-    if (recognitionRef.current && !isListening) {
-      setTranscript('');
-      recognitionRef.current.start();
+  const startListening = useCallback(() => {
+    if (recognitionRef.current) {
+        try {
+            setTranscript('');
+            recognitionRef.current.start();
+        } catch (e) {
+            console.error("Speech recognition start error:", e);
+        }
     }
-  };
+  }, []);
 
-  const stopListening = () => {
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+        try {
+            recognitionRef.current.stop();
+        } catch(e) {
+            console.error("Speech recognition stop error:", e);
+        }
     }
-  };
+  }, []);
 
   return {
     isListening,

@@ -69,7 +69,7 @@ const consultantPrompt = ai.definePrompt({
 # HASTA RAPOR BİLGİLERİ
 - **Ad Soyad:** {{patientAnalysis.name}} {{patientAnalysis.surname}}
 - **Tahmini Yaş:** {{patientAnalysis.estimatedAge}}
-- **Potansiyel Engellilik Yüzdesi:** {{#if patientAnalysis.disabilityPercentage}}{{patientAnalysis.disabilityPercentage}}%{{else}}Belirtilmemiş{{/if}}
+- **Potansiyel Engellilik Yüzdesi:** {{patientAnalysis.disabilityPercentage}}%
 - **Potansiyel Engel Türleri:** {{#if patientAnalysis.disabilityTypes}}{{#each patientAnalysis.disabilityTypes}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}{{else}}Belirtilmemiş{{/if}}
 - **Ön Değerlendirme Raporu Özeti:** {{{patientAnalysis.report}}}
 
